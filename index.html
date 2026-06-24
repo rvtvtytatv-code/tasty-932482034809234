@@ -1,0 +1,2445 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Taste of Home</title>
+    <!-- v2516: phone menu filter/search fix -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap');
+        * { box-sizing: border-box; }
+        :root {
+            --bg:#f7f3ea;
+            --card:#ffffff;
+            --text:#171717;
+            --muted:#777;
+            --red:#d92f2f;
+            --dark:#1f1f1f;
+            --gold:#c5a059;
+            --shadow:0 14px 38px rgba(0,0,0,.10);
+        }
+        html, body { margin:0; min-height:100%; background:var(--bg); color:var(--text); font-family:'Manrope', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-weight:600; letter-spacing:-.015em; }
+        body { padding-bottom:94px; }
+        button, input, select, textarea { font-family:inherit; }
+        button { border:0; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+        .app { width:100%; max-width:620px; min-height:100vh; margin:0 auto; }
+        .tab { display:none; }
+        .tab.active { display:block; }
+
+        .hero {
+            height:310px;
+            position:relative;
+            overflow:hidden;
+            border-radius:0 0 30px 30px;
+            background:#222;
+        }
+        .hero-slide {
+            position:absolute;
+            inset:0;
+            background-size:cover;
+            background-position:center;
+            opacity:0;
+            transition:opacity .35s ease;
+            pointer-events:none;
+        }
+        .hero-slide.active {
+            opacity:1;
+        }
+        .hero-slide:before {
+            content:"";
+            position:absolute;
+            inset:0;
+            background:linear-gradient(180deg,rgba(0,0,0,.22),rgba(0,0,0,.76));
+            pointer-events:none;
+        }
+        .hero-content {
+            position:relative;
+            z-index:2;
+            width:100%;
+        }
+        .hero-content-fixed {
+            position:absolute;
+            left:24px;
+            right:24px;
+            bottom:24px;
+            z-index:5;
+            width:auto;
+            color:#fff;
+        }
+        .hero-title {
+            margin:0 0 8px;
+            font-size:34px;
+            line-height:1;
+            font-weight:900;
+            letter-spacing:.2px;
+            color:#fff;
+            text-shadow:0 3px 14px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.95);
+        }
+        .hero-subtitle {
+            margin:0 0 18px;
+            font-size:16px;
+            font-weight:700;
+            opacity:.98;
+            color:#fff;
+            text-shadow:0 2px 10px rgba(0,0,0,.78), 0 1px 2px rgba(0,0,0,.9);
+        }
+        .search {
+            display:flex;
+            align-items:center;
+            gap:10px;
+            border-radius:18px;
+            padding:13px 15px;
+            background:rgba(255,255,255,.16);
+            border:1px solid rgba(255,255,255,.28);
+            backdrop-filter:blur(10px);
+            -webkit-backdrop-filter:blur(10px);
+            box-shadow:0 8px 24px rgba(0,0,0,.18);
+            pointer-events:auto;
+        }
+        .search input {
+            width:100%;
+            border:0;
+            outline:0;
+            background:transparent;
+            color:#fff;
+            font-size:15px;
+            font-weight:700;
+        }
+        .search input::placeholder {
+            color:rgba(255,255,255,.82);
+        }
+
+        .top-row { display:flex; justify-content:flex-end; padding:18px 18px 0; }
+        .lang { display:flex; gap:4px; padding:5px; background:#fff; border-radius:999px; box-shadow:var(--shadow); }
+        .lang button { padding:8px 13px; border-radius:999px; background:transparent; color:#777; font-weight:900; }
+        .lang button.active { background:var(--red); color:#fff; }
+
+        .working-hours { display:none; margin:0 18px 16px; padding:14px 16px; background:#fff; border-radius:18px; box-shadow:var(--shadow); }
+        .working-hours.active { display:block; }
+        .working-hours h3 { margin:0 0 6px; color:var(--red); font-size:15px; font-weight:900; }
+        .working-hours div { color:#555; font-size:14px; line-height:1.35; white-space:pre-line; }
+
+        .categories { display:flex; gap:10px; overflow-x:auto; padding:18px; scrollbar-width:none; }
+        .categories::-webkit-scrollbar { display:none; }
+        .cat { flex:0 0 auto; padding:11px 17px; border-radius:999px; background:#fff; box-shadow:var(--shadow); color:#333; font-weight:900; }
+        .cat.active { background:var(--red); color:#fff; }
+
+        .section-title { display:flex; align-items:center; justify-content:space-between; padding:0 18px 14px; font-size:23px; font-weight:900; }
+        .loading-dot { color:#111; font-size:22px; }
+        .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:0 18px 22px; }
+        .product { position:relative; overflow:hidden; border-radius:22px; background:#fff; box-shadow:var(--shadow); transition:transform .15s ease, box-shadow .15s ease; }
+        .product:active { transform:scale(.985); }
+        .product img { display:block; width:100%; height:150px; object-fit:cover; background:#eee; }
+        .product-body { padding:13px; }
+        .product-name { min-height:38px; font-size:14px; font-weight:900; line-height:1.25; }
+        .product-weight { margin-top:4px; color:var(--muted); font-size:12px; }
+        .product-meta-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .product-stock-pill, .product-time-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; border-radius:999px; background:#fff5ee; color:#6b4b38; font-size:11px; font-weight:900; line-height:1; }
+        .product-stock-pill.low { background:#fff0f0; color:var(--red); }
+        .product-time-pill { background:#f4f2ee; color:#625b52; }
+        .side-mark { display:inline-block; margin-top:7px; padding:4px 8px; border-radius:999px; background:#fff3cd; color:#8a6500; font-size:12px; font-weight:900; }
+        .product-bottom { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:11px; }
+        .price { color:var(--red); font-size:16px; font-weight:900; }
+        .add { width:39px; height:39px; border-radius:14px; background:var(--dark); color:#fff; font-size:24px; line-height:1; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px rgba(0,0,0,.18); }
+        .add:active { transform:scale(.94); }
+        .badge { position:absolute; left:10px; top:10px; padding:5px 9px; border-radius:9px; background:var(--gold); color:#fff; font-size:10px; font-weight:900; text-transform:uppercase; }
+        .empty { grid-column:1/-1; text-align:center; color:#888; padding:60px 20px; line-height:1.45; }
+
+        .empty-search-box { grid-column:1/-1; margin:28px 18px; padding:28px 18px; border-radius:28px; background:#fff; box-shadow:var(--shadow); text-align:center; color:#222; }
+        .empty-search-box strong { display:block; font-size:20px; line-height:1.2; margin-bottom:8px; }
+        .empty-search-box span { display:block; color:#777; font-weight:700; line-height:1.35; margin-bottom:16px; }
+        .clear-search-btn { min-width:170px; padding:13px 20px; border-radius:18px; background:var(--red); color:#fff; font-weight:900; box-shadow:0 14px 30px rgba(217,47,47,.2); }
+        .error-box { grid-column:1/-1; margin:16px 0; padding:18px; border-radius:20px; background:#fff; box-shadow:var(--shadow); color:#555; text-align:center; }
+        .retry { margin-top:12px; padding:12px 18px; border-radius:14px; background:var(--red); color:#fff; font-weight:900; }
+
+        .cart-item { margin:14px 18px; padding:14px; display:flex; align-items:center; gap:12px; border-radius:22px; background:#fff; box-shadow:var(--shadow); }
+        .cart-item img { flex:0 0 auto; width:72px; height:72px; border-radius:16px; object-fit:cover; background:#eee; }
+        .cart-main { flex:1; min-width:0; }
+        .cart-name { font-weight:900; line-height:1.25; }
+        .cart-side, .cart-extra { margin-top:4px; color:#777; font-size:12px; line-height:1.25; }
+        .cart-price { margin-top:5px; color:var(--red); font-weight:900; }
+        .qty { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+        .qty button { width:32px; height:32px; border-radius:50%; background:#fff; border:1px solid #ddd; font-size:19px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+        .qty strong { min-width:18px; text-align:center; }
+
+        .form { margin:18px; padding:20px; border-radius:30px; background:linear-gradient(180deg,#ffffff,#fffdf8); box-shadow:var(--shadow); border:1px solid rgba(0,0,0,.04); }
+        .field { margin-bottom:16px; }
+        .field label { display:block; margin-bottom:8px; color:#6f6b62; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:.045em; }
+        .field input, .field select, .field textarea { width:100%; border:1px solid #ece8df; border-radius:18px; background:#fbfaf6; padding:15px 16px; outline:0; font-size:16px; font-weight:700; color:#1d1d1d; box-shadow:inset 0 1px 0 rgba(255,255,255,.75); transition:border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+        .field input:focus, .field select:focus, .field textarea:focus { border-color:#e6b8a5; background:#fff; box-shadow:0 0 0 4px rgba(217,47,47,.08); }
+        .field textarea { min-height:104px; resize:vertical; }
+        input[type="datetime-local"] { min-height:48px; }
+        .radio-row { display:flex !important; align-items:center; gap:10px; margin:10px 0; padding:12px 14px; border:1px solid #eee8df; border-radius:18px; background:#fbfaf6; color:#262626 !important; font-size:15px !important; font-weight:850 !important; text-transform:none !important; letter-spacing:-.01em !important; }
+        .radio-row input { width:auto; accent-color:var(--red); transform:scale(1.08); }
+        .summary { border-top:1px solid #eee; margin-top:14px; padding-top:14px; }
+        .line { display:flex; justify-content:space-between; gap:12px; margin:8px 0; font-size:15px; }
+        .line.total { font-size:18px; font-weight:900; }
+        .note { color:#777; font-size:13px; margin-top:8px; }
+        .checkout { width:100%; margin-top:16px; padding:17px; border-radius:18px; background:var(--red); color:#fff; font-size:16px; font-weight:900; box-shadow:0 10px 25px rgba(212,47,47,.28); }
+        .checkout:disabled { background:#999; box-shadow:none; }
+
+        .profile-header { padding:42px 20px 34px; text-align:center; color:#fff; background:radial-gradient(circle at 20% 0%,rgba(217,47,47,.35),transparent 34%),linear-gradient(135deg,#1f1f1f,#34312d); border-radius:0 0 34px 34px; box-shadow:0 18px 44px rgba(0,0,0,.16); }
+        .profile-header h1 { margin:0 0 8px; font-size:30px; font-weight:950; letter-spacing:-.04em; }
+        .profile-card { margin:18px; padding:18px; border-radius:26px; background:linear-gradient(180deg,#fff,#fffdf8); box-shadow:var(--shadow); border:1px solid rgba(0,0,0,.04); }
+        .history-item { padding:12px 0; border-top:1px solid #eee; }
+        .profile-hint { display:none !important; }
+        .order-card { margin:0 0 14px; padding:16px; border-radius:22px; background:linear-gradient(180deg,#fff,#fffaf7); border:1px solid #f1ebe6; box-shadow:0 10px 26px rgba(28,28,28,.07); }
+        .order-card-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:12px; }
+        .order-number { font-size:17px; font-weight:900; color:#222; }
+        .order-date { color:#888; font-size:12px; margin-top:3px; }
+        .order-total { font-weight:900; color:var(--red); white-space:nowrap; }
+        .order-chip { display:inline-flex; align-items:center; gap:5px; margin:4px 6px 0 0; padding:6px 9px; border-radius:999px; background:#f5f5f2; color:#555; font-size:12px; font-weight:900; }
+        .status-track { display:grid; gap:0; margin:14px 0; padding:12px; border-radius:18px; background:#f8f8f5; }
+        .status-step { display:grid; grid-template-columns:30px 1fr; gap:10px; position:relative; padding:0 0 14px; }
+        .status-step:last-child { padding-bottom:0; }
+        .status-step:before { content:''; position:absolute; left:14px; top:30px; bottom:0; width:2px; background:#deded8; }
+        .status-step:last-child:before { display:none; }
+        .status-dot { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e9e9e3; color:#777; font-size:15px; font-weight:900; z-index:1; }
+        .status-step.done .status-dot { background:#1f8f4d; color:#fff; }
+        .status-step.current .status-dot { background:var(--red); color:#fff; box-shadow:0 0 0 5px rgba(212,47,47,.12); }
+        .status-title { font-weight:900; color:#222; }
+        .status-text { color:#777; font-size:12px; margin-top:2px; line-height:1.35; }
+        .order-items { color:#444; line-height:1.45; font-size:13px; margin-top:10px; }
+        .order-payment-box { margin-top:14px; padding:14px; border-radius:18px; background:#fff4e6; border:1px solid #ffd8a8; }
+        .order-payment-title { font-weight:900; margin-bottom:6px; color:#9a4b00; }
+        .history-pay-btn { width:100%; margin-top:10px; padding:13px; border-radius:15px; background:var(--red); color:#fff; font-weight:900; }
+        .history-refresh { width:100%; margin:0 0 14px; padding:13px; border-radius:16px; background:#222; color:#fff; font-weight:900; }
+        .tg-user-card { margin:0 0 18px; padding:16px; border-radius:24px; background:linear-gradient(135deg,#fff8f2 0%,#f7f1ff 100%); border:1px solid #eee0d8; display:flex; align-items:center; gap:14px; box-shadow:0 12px 28px rgba(0,0,0,.055); }
+        .tg-avatar { width:58px; height:58px; flex:0 0 58px; border-radius:50%; background:linear-gradient(135deg,var(--red),#ff9f42); color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:950; box-shadow:0 10px 24px rgba(212,47,47,.20); overflow:hidden; }
+        .tg-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
+        .tg-kicker { color:#8b8579; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px; }
+        .tg-name { font-weight:950; color:#1f1f1f; font-size:18px; line-height:1.15; }
+        .tg-meta { color:#7a756c; font-size:13px; margin-top:4px; line-height:1.3; font-weight:700; }
+        .order-card { cursor:pointer; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease; position:relative; overflow:hidden; }
+        .order-card:active { transform:scale(.985); }
+        .order-card:after { content:'›'; position:absolute; right:16px; top:16px; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#f3f3ef; color:#777; font-size:24px; line-height:1; }
+        .order-card:hover { box-shadow:0 14px 34px rgba(28,28,28,.10); border-color:#ead8cd; }
+        .status-step.current .status-dot { animation:statusPulse 1.5s ease-in-out infinite; }
+        @keyframes statusPulse { 0%,100%{box-shadow:0 0 0 5px rgba(212,47,47,.12)} 50%{box-shadow:0 0 0 10px rgba(212,47,47,.05)} }
+        .order-detail-sheet { max-height:92vh; padding-bottom:calc(26px + env(safe-area-inset-bottom)); }
+        .detail-close { float:right; width:38px; height:38px; border-radius:14px; background:#f1f1ee; color:#222; font-size:20px; font-weight:900; }
+        .detail-hero { margin:4px 0 16px; padding:18px; border-radius:24px; background:linear-gradient(135deg,#222,#373737); color:#fff; box-shadow:0 16px 34px rgba(0,0,0,.14); }
+        .detail-hero .order-total { color:#fff; font-size:24px; margin-top:8px; white-space:normal; overflow-wrap:anywhere; word-break:break-word; line-height:1.15; max-width:100%; }
+        .detail-block { margin:14px 0; padding:15px; border-radius:20px; background:#faf9f6; border:1px solid #eee8df; }
+        .detail-block-title { font-size:14px; color:#777; font-weight:900; text-transform:uppercase; margin-bottom:9px; }
+        .detail-item { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid #ece7df; font-size:14px; }
+        .detail-item:last-child { border-bottom:0; }
+        .detail-product { display:flex; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid #ece7df; }
+        .detail-product:last-child { border-bottom:0; }
+        .detail-product img { width:64px; height:64px; border-radius:16px; object-fit:cover; background:#eee; flex:0 0 auto; }
+        .detail-product-main { flex:1; min-width:0; }
+        .detail-product-name { font-size:15px; font-weight:950; line-height:1.22; color:#181818; }
+        .detail-product-meta { margin-top:4px; font-size:12px; line-height:1.35; color:#777; }
+        .detail-product-price { flex:0 0 auto; text-align:right; font-weight:950; color:#111; }
+        .detail-pay-panel { margin-top:14px; padding:16px; border-radius:22px; background:linear-gradient(180deg,#fff9f1,#fff); border:1px solid #f0e0cf; box-shadow:0 12px 28px rgba(128,78,24,.08); }
+        .detail-pay-title { font-size:16px; font-weight:950; margin-bottom:10px; color:#171717; }
+        .detail-qr-image { display:block; width:100%; max-width:280px; max-height:300px; object-fit:contain; margin:10px auto 14px; border-radius:18px; background:#fff; border:1px solid #f1ebe6; }
+        .detail-qr-placeholder { padding:24px 14px; border-radius:18px; background:#fff; color:#777; text-align:center; font-size:13px; font-weight:850; }
+        .pay-main-btn { width:100%; padding:15px; border-radius:16px; background:var(--red); color:#fff; font-weight:950; font-size:15px; box-shadow:0 10px 25px rgba(217,47,47,.22); }
+        .detail-actions { position:sticky; bottom:0; display:grid; gap:10px; padding-top:12px; background:linear-gradient(180deg,rgba(255,255,255,0),#fff 20%); }
+        .repeat-btn { width:100%; padding:14px; border-radius:16px; background:#222; color:#fff; font-weight:900; }
+
+        .reviews-head { padding:34px 20px 18px; text-align:center; }
+        .reviews-head h1 { margin:0 0 8px; font-size:32px; font-weight:900; }
+        .reviews-head p { margin:0; color:var(--muted); line-height:1.35; }
+        .review-form, .review-card { margin:0 18px 16px; padding:18px; border-radius:24px; background:#fff; box-shadow:var(--shadow); }
+        .review-form h2, .review-list-title { margin:0 0 14px; font-size:22px; font-weight:900; }
+        .star-row { display:flex; gap:8px; margin:8px 0 14px; }
+        .star-btn { width:42px; height:42px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:#f4f4f0; color:#b8b8b8; font-size:23px; font-weight:900; }
+        .star-btn.active { background:#fff4d6; color:#f59e0b; }
+        .review-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
+        .review-name { font-weight:900; }
+        .review-date { color:#999; font-size:12px; margin-top:3px; }
+        .review-stars { color:#f59e0b; letter-spacing:1px; white-space:nowrap; }
+        .review-text { color:#444; line-height:1.45; white-space:pre-wrap; word-break:break-word; }
+        .review-source { display:inline-flex; margin-top:10px; padding:5px 9px; border-radius:999px; background:#f3f4f6; color:#666; font-size:11px; font-weight:900; }
+        .review-disabled { margin:18px; padding:24px; border-radius:22px; background:#fff; box-shadow:var(--shadow); text-align:center; color:#777; }
+        .review-thanks { padding:14px 16px; border-radius:16px; background:#ecfdf5; color:#166534; font-weight:900; margin-bottom:14px; display:none; }
+        .review-thanks.active { display:block; }
+
+        .bottom-nav { position:fixed; z-index:1000; left:50%; bottom:0; transform:translateX(-50%); width:100%; max-width:620px; display:flex; justify-content:space-around; padding:11px 10px calc(17px + env(safe-area-inset-bottom)); border-top:1px solid #eee; background:rgba(255,255,255,.96); backdrop-filter:blur(10px); }
+        .nav { position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; background:transparent; color:#999; font-size:11px; font-weight:900; }
+        .nav.active { color:var(--red); }
+        .nav-icon { position:relative; font-size:23px; display:inline-flex; align-items:center; justify-content:center; min-width:32px; min-height:27px; }
+        .cart-badge { position:absolute; top:-6px; right:-11px; min-width:18px; height:18px; display:none; align-items:center; justify-content:center; border-radius:999px; padding:0 5px; background:var(--red); color:#fff; font-size:10px; font-weight:900; }
+
+        .modal { position:fixed; inset:0; z-index:2000; display:none; align-items:flex-end; background:rgba(0,0,0,.48); }
+        .modal.active { display:flex; }
+        .sheet { width:100%; max-width:620px; max-height:88vh; overflow:auto; margin:0 auto; padding:22px; border-radius:28px 28px 0 0; background:#fff; box-shadow:0 -14px 40px rgba(0,0,0,.16); transform:translateY(18px); animation:sheetIn .18s ease forwards; }
+        @keyframes sheetIn { to { transform:translateY(0); } }
+        .sheet img { display:block; width:100%; max-height:260px; object-fit:cover; border-radius:22px; background:#eee; }
+        .side-options { display:grid; gap:9px; margin-top:12px; }
+        .side-option { padding:13px 14px; border-radius:14px; border:1px solid #eee; background:#fafafa; text-align:left; font-weight:900; }
+        .side-option.active { border-color:var(--red); background:#fff0f0; color:var(--red); }
+        .extra-options { margin-top:14px; }
+        .extra-title { margin:0 0 8px; font-size:18px; font-weight:900; }
+        .extra-option { position:relative; display:flex; align-items:center; gap:12px; padding:14px 14px; margin:8px 0; border:1px solid #efe8df; border-radius:18px; background:linear-gradient(180deg,#fff,#fffaf5); font-weight:900; box-shadow:0 8px 20px rgba(20,20,20,.05); transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+        .extra-option:active { transform:scale(.985); }
+        .extra-option input { position:absolute; opacity:0; pointer-events:none; }
+        .extra-option span { display:flex; align-items:center; gap:12px; width:100%; line-height:1.25; }
+        .extra-option span b { font:inherit; flex:1; }
+        .extra-option span small { padding:5px 9px; border-radius:999px; background:#fff0f0; color:var(--red); font-size:12px; font-weight:950; white-space:nowrap; }
+        .extra-option span:before { content:''; flex:0 0 auto; width:24px; height:24px; border-radius:9px; border:2px solid #d8d0c4; background:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.8); transition:all .16s ease; }
+        .extra-option input:checked + span:before { border-color:var(--red); background:var(--red); box-shadow:0 8px 18px rgba(217,47,47,.25); }
+        .extra-option input:checked + span:after { content:'✓'; position:absolute; left:21px; top:50%; transform:translateY(-50%); color:#fff; font-size:16px; font-weight:950; }
+        .extra-option input:checked + span { color:#171717; }
+        .extra-option:has(input:checked) { border-color:#f0b5aa; box-shadow:0 12px 28px rgba(217,47,47,.10); }
+        .modal-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+        .secondary { padding:14px; border-radius:16px; background:#222; color:#fff; font-weight:900; }
+
+        .add-toast { position:fixed; z-index:2147483647; left:50%; top:18px; transform:translateX(-50%) translateY(-18px) scale(.92); display:flex; align-items:center; gap:9px; padding:14px 19px; border-radius:999px; background:#1f1f1f; color:#fff; font-size:15px; font-weight:900; box-shadow:0 16px 40px rgba(0,0,0,.32); opacity:0; pointer-events:none; white-space:nowrap; }
+        .add-toast.show { animation:addToastVisible 1.4s ease forwards; }
+        @keyframes addToastVisible { 0%{opacity:0;transform:translateX(-50%) translateY(-18px) scale(.92)} 12%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.04)} 22%,78%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)} 100%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.96)} }
+        .fly-image, .fly-dot { position:fixed; z-index:2147483646; pointer-events:none; will-change:transform,opacity; }
+        .fly-image { width:76px; height:76px; object-fit:cover; border-radius:18px; box-shadow:0 14px 34px rgba(0,0,0,.28); }
+        .fly-dot { width:58px; height:58px; display:flex; align-items:center; justify-content:center; border-radius:999px; background:var(--red); color:#fff; font-size:24px; font-weight:900; box-shadow:0 14px 34px rgba(212,47,47,.35); }
+        .cart-bump { animation:cartBump .55s ease !important; }
+        @keyframes cartBump { 0%{transform:scale(1)} 35%{transform:scale(1.34)} 70%{transform:scale(.92)} 100%{transform:scale(1)} }
+
+        .qr-box { padding:14px; border-radius:22px; background:#fafafa; border:1px solid #eee; text-align:center; }
+        .qr-image { display:block; width:100%; max-width:320px; height:auto; max-height:360px; margin:0 auto; object-fit:contain; border-radius:18px; background:#fff; }
+        .qr-placeholder { padding:42px 18px; border-radius:18px; background:#fff; color:#777; font-weight:900; line-height:1.45; }
+        .payment-hint { color:#666; line-height:1.45; margin:12px 0 0; white-space:pre-wrap; }
+
+
+        .empty-products-state {
+            grid-column:1/-1;
+            margin:34px 18px 22px;
+            padding:34px 22px;
+            border-radius:28px;
+            background:#fff;
+            box-shadow:var(--shadow);
+            text-align:center;
+            color:#222;
+        }
+        .empty-products-emoji {
+            display:block;
+            font-size:48px;
+            line-height:1;
+            margin-bottom:14px;
+        }
+        .empty-products-title {
+            margin:0 0 8px;
+            font-size:22px;
+            line-height:1.2;
+            font-weight:900;
+        }
+        .empty-products-text {
+            margin:0;
+            color:#777;
+            font-size:15px;
+            line-height:1.45;
+            font-weight:700;
+        }
+
+
+        /* FIX v2515: QR modal must always open above order details */
+        #payment-qr-modal { z-index: 5000; }
+        #order-detail-modal { z-index: 3000; }
+
+        @media(max-width:420px){ .grid{grid-template-columns:1fr;} .hero{height:310px;} .hero-title{font-size:30px;} }
+
+        .qty-btn {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .qty-number {
+            min-width: 24px;
+            text-align: center;
+            display: inline-block;
+        }
+
+        .qty-flash {
+            animation: qtyFlash .22s ease;
+        }
+
+        @keyframes qtyFlash {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+    
+        /* FIX v2512: order history amount and details modal */
+        .order-card { padding-right:44px; }
+        .order-card-top { padding-right:0; align-items:flex-start; }
+        .order-card-top > div:first-child { min-width:0; flex:1 1 auto; }
+        .order-total { flex:0 1 96px; max-width:96px; min-width:0; text-align:right; white-space:normal; overflow-wrap:anywhere; word-break:break-word; line-height:1.12; font-size:15px; }
+        .order-card:after { pointer-events:none; }
+        .order-detail-sheet { width:100%; max-width:480px; max-height:92vh; overflow:auto; border-radius:28px 28px 0 0; padding:20px 18px 28px; background:#fff; box-shadow:0 -24px 60px rgba(0,0,0,.22); }
+        .detail-block-title { font-size:16px; font-weight:950; margin-bottom:10px; color:#1d1d1d; }
+        .detail-product-price { flex:0 0 76px; text-align:right; font-weight:950; line-height:1.25; color:#1f1f1f; overflow-wrap:anywhere; }
+        .detail-product-main { min-width:0; flex:1 1 auto; }
+        .detail-product-name { font-weight:950; color:#1d1d1d; line-height:1.25; }
+        .detail-product-meta { margin-top:4px; font-size:12px; color:#777; font-weight:800; line-height:1.25; }
+        @media (max-width:430px){ .order-total{max-width:82px;font-size:14px;} .order-card{padding-right:42px;} .order-card:after{right:12px;} }
+
+
+
+        /* FIX v2514: adaptive order history and detail screen */
+        .profile-card{padding:16px 14px 22px;}
+        #history{display:grid;gap:12px;}
+        .order-card{border-radius:24px!important;background:linear-gradient(180deg,#fff,#fffaf4)!important;border:1px solid rgba(196,160,128,.22)!important;box-shadow:0 12px 30px rgba(40,32,26,.08)!important;padding:16px!important;overflow:hidden!important;}
+        .order-card:after{display:none!important;}
+        .order-card-top{display:flex!important;gap:12px!important;justify-content:space-between!important;align-items:flex-start!important;margin-bottom:12px!important;}
+        .order-card-top>div:first-child{min-width:0!important;}
+        .order-number{font-size:18px!important;line-height:1.1!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}
+        .order-date{font-size:12px!important;color:#82786d!important;margin-top:5px!important;}
+        .order-total{font-size:17px!important;color:#df2f2f!important;font-weight:950!important;line-height:1.1!important;text-align:right!important;max-width:128px!important;min-width:96px!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important;}
+        .order-chips{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 6px;}
+        .order-chip{display:inline-flex!important;align-items:center!important;min-height:28px!important;padding:7px 10px!important;border-radius:999px!important;background:#f5f1ea!important;color:#3a352f!important;font-size:12px!important;font-weight:900!important;line-height:1!important;margin:0!important;}
+        .order-card-preview{display:flex;gap:10px;align-items:center;margin:12px 0;padding:10px;border-radius:18px;background:#f8f7f3;min-width:0;}
+        .order-card-preview img{width:48px!important;height:48px!important;max-height:48px!important;border-radius:14px!important;object-fit:cover!important;flex:0 0 48px;background:#eee;}
+        .order-card-preview-main{min-width:0;flex:1;}
+        .order-card-preview-name{font-size:13px;font-weight:950;color:#24211e;line-height:1.24;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+        .order-card-preview-meta{font-size:12px;font-weight:800;color:#81776f;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .order-open-btn{width:100%;height:46px;border:0;border-radius:16px;background:#242424;color:#fff;font-size:15px;font-weight:950;box-shadow:0 12px 24px rgba(0,0,0,.12);}
+        .order-open-btn:active{transform:scale(.985);}
+        .status-track{padding:12px!important;border-radius:20px!important;background:#f7f6f1!important;gap:0!important;}
+        .status-step{display:grid!important;grid-template-columns:40px 1fr!important;gap:10px!important;position:relative!important;min-width:0!important;padding-bottom:12px!important;}
+        .status-step:last-child{padding-bottom:0!important;}
+        .status-step:before{content:'';position:absolute;left:19px;top:39px;bottom:0;width:2px;background:#e4ded5;}
+        .status-step:last-child:before{display:none;}
+        .status-step.done:before{background:#df2f2f;}
+        .status-dot{width:40px!important;height:40px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;background:#eee!important;font-size:17px!important;z-index:1!important;}
+        .status-step.done .status-dot{background:#df2f2f!important;color:#fff!important;box-shadow:0 10px 24px rgba(223,47,47,.22);}
+        .status-title{font-size:15px!important;font-weight:950!important;line-height:1.2!important;color:#1c1b19!important;}
+        .status-text{font-size:12px!important;color:#777!important;line-height:1.25!important;margin-top:3px!important;}
+        .modal.active#order-detail-modal{display:flex!important;align-items:flex-end!important;justify-content:center!important;}
+        .order-detail-sheet{width:100%!important;max-width:520px!important;max-height:94vh!important;overflow-y:auto!important;overflow-x:hidden!important;border-radius:30px 30px 0 0!important;padding:18px 14px calc(24px + env(safe-area-inset-bottom))!important;background:#fffaf4!important;box-sizing:border-box!important;}
+        .detail-close{position:sticky!important;top:0!important;margin-left:auto!important;z-index:4!important;width:48px!important;height:48px!important;border-radius:50%!important;background:#fff!important;box-shadow:0 10px 24px rgba(0,0,0,.12)!important;}
+        .detail-hero{border-radius:26px!important;background:radial-gradient(circle at 20% 0%,rgba(223,47,47,.28),transparent 42%),linear-gradient(135deg,#222,#36322d)!important;color:#fff!important;padding:20px!important;overflow:hidden!important;}
+        .detail-hero .order-total{color:#fff!important;font-size:26px!important;max-width:100%!important;text-align:left!important;margin-top:8px!important;min-width:0!important;}
+        .detail-block{margin-top:14px!important;padding:16px!important;border-radius:24px!important;background:#fff!important;border:1px solid #eee4d7!important;box-shadow:0 10px 26px rgba(50,36,20,.05)!important;overflow:hidden!important;}
+        .detail-block-title{font-size:16px!important;text-transform:none!important;letter-spacing:-.02em!important;margin-bottom:12px!important;}
+        .detail-product{display:grid!important;grid-template-columns:78px minmax(0,1fr)!important;gap:12px!important;align-items:center!important;padding:12px 0!important;border-bottom:1px solid #eee8df!important;min-width:0!important;}
+        .detail-product:last-child{border-bottom:0!important;}
+        .order-detail-sheet .detail-product>img{width:78px!important;height:78px!important;max-width:78px!important;max-height:78px!important;object-fit:cover!important;border-radius:18px!important;background:#eee!important;grid-row:1 / span 2!important;}
+        .detail-product-main{min-width:0!important;}
+        .detail-product-name{font-size:15px!important;font-weight:950!important;line-height:1.2!important;overflow-wrap:anywhere!important;word-break:normal!important;color:#191816!important;}
+        .detail-product-meta{font-size:12px!important;color:#746c63!important;line-height:1.25!important;margin-top:5px!important;overflow-wrap:anywhere!important;}
+        .detail-product-price{grid-column:2!important;display:flex!important;justify-content:space-between!important;gap:8px!important;align-items:center!important;text-align:left!important;width:100%!important;max-width:100%!important;font-size:14px!important;line-height:1.2!important;color:#191816!important;overflow-wrap:anywhere!important;}
+        .detail-product-price .qty{font-weight:900;color:#777;}
+        .detail-product-price .money{font-weight:950;color:#df2f2f;text-align:right;}
+        .detail-pay-panel{margin-top:14px!important;padding:16px!important;border-radius:24px!important;background:#fffaf1!important;border:1px solid #f1dcc0!important;overflow:hidden!important;}
+        .detail-qr-image{display:block!important;width:100%!important;max-width:280px!important;height:auto!important;max-height:none!important;object-fit:contain!important;border-radius:22px!important;margin:12px auto!important;background:#fff!important;padding:10px!important;box-sizing:border-box!important;}
+        .pay-main-btn,.repeat-btn{width:100%!important;min-height:50px!important;border:0!important;border-radius:18px!important;font-weight:950!important;font-size:15px!important;}
+        .pay-main-btn{background:#df2f2f!important;color:#fff!important;box-shadow:0 10px 22px rgba(223,47,47,.22)!important;}
+        .repeat-btn{background:#242424!important;color:#fff!important;}
+        .detail-actions{position:static!important;margin-top:14px!important;}
+        @media(max-width:430px){
+            .profile-card{margin:12px!important;padding:14px 12px 20px!important;border-radius:24px!important;}
+            .order-number{max-width:150px;font-size:17px!important;}
+            .order-total{font-size:16px!important;min-width:84px!important;max-width:116px!important;}
+            .order-detail-sheet{max-height:96vh!important;padding-left:12px!important;padding-right:12px!important;}
+            .detail-hero{padding:18px!important;border-radius:24px!important;}
+            .detail-hero .order-total{font-size:24px!important;}
+            .detail-product{grid-template-columns:72px minmax(0,1fr)!important;gap:10px!important;}
+            .order-detail-sheet .detail-product>img{width:72px!important;height:72px!important;max-width:72px!important;max-height:72px!important;}
+        }
+
+
+
+        /* FIX v2518: аккуратная дата, необязательный адрес, картинки в истории */
+        #order-delivery-datetime{
+            width:100%!important;
+            max-width:100%!important;
+            min-width:0!important;
+            height:58px!important;
+            min-height:58px!important;
+            box-sizing:border-box!important;
+            border-radius:20px!important;
+            padding:0 18px!important;
+            font-size:16px!important;
+            line-height:58px!important;
+            font-weight:800!important;
+            color:#171717!important;
+            background:#fbfaf7!important;
+            -webkit-appearance:none!important;
+            appearance:none!important;
+            overflow:hidden!important;
+            text-align:left!important;
+        }
+        #order-delivery-datetime::-webkit-date-and-time-value{
+            text-align:left!important;
+            min-height:58px!important;
+            line-height:58px!important;
+            margin:0!important;
+            padding:0!important;
+        }
+        #order-delivery-datetime::-webkit-calendar-picker-indicator{
+            opacity:.9!important;
+            width:22px!important;
+            height:22px!important;
+            padding:8px!important;
+        }
+        #address-field .note-small{
+            margin-top:8px;
+            color:#8c8379;
+            font-size:13px;
+            font-weight:700;
+            line-height:1.35;
+        }
+        .detail-product img,
+        .order-card-preview img{
+            display:block!important;
+            object-fit:cover!important;
+            background:#f0eee9!important;
+        }
+        .detail-product-main,
+        .order-card-preview-main{min-width:0!important;}
+        .detail-product-name,
+        .order-card-preview-name{word-break:normal!important;overflow-wrap:anywhere!important;}
+
+    </style>
+</head>
+<body>
+<div class="app">
+    <section id="menu-tab" class="tab active">
+        <div class="hero" id="hero"></div>
+        <div class="top-row">
+            <div class="lang">
+                <button id="lang-ru" data-lang="ru">RU</button>
+                <button id="lang-en" data-lang="en">EN</button>
+            </div>
+        </div>
+        <div class="working-hours" id="working-hours-block">
+            <h3 id="working-hours-title">Часы работы</h3>
+            <div id="working-hours-text"></div>
+        </div>
+        <div class="categories" id="categories"></div>
+        <div class="section-title">
+            <span id="menu-title">Меню</span>
+            <span id="loading" class="loading-dot">...</span>
+        </div>
+        <div class="grid" id="products"><div class="empty">Загрузка...</div></div>
+    </section>
+
+    <section id="cart-tab" class="tab">
+        <div class="section-title" style="padding-top:24px;"><span id="cart-title">Корзина</span></div>
+        <div id="cart-list"></div>
+        <form class="form" id="order-form">
+            <div class="tg-user-card" id="tg-user-card">
+                <div class="tg-avatar" id="tg-avatar">T</div>
+                <div>
+                    <div class="tg-kicker" id="tg-kicker">Ваш профиль</div>
+                    <div class="tg-name" id="tg-name">Гость</div>
+                    <div class="tg-meta" id="tg-meta">Telegram</div>
+                </div>
+            </div>
+            <input id="order-name" type="hidden">
+            <input id="order-phone" type="hidden">
+            <div class="field"><label id="label-type">Получение</label><select id="order-type"><option value="delivery">Доставка</option><option value="pickup">Самовывоз</option></select></div>
+            <div class="field" id="district-field"><label id="label-district">Район</label><select id="order-district"></select></div>
+            <div class="field" id="address-field"><label id="label-address">Адрес</label><input id="order-address" autocomplete="street-address"></div>
+            <div class="field"><label id="label-delivery-datetime">Выберите время, к которому заказ должен быть готов</label><input id="order-delivery-datetime" type="datetime-local" required><div class="note" id="delivery-datetime-note">Выберите дату и время.</div></div>
+            <div class="field">
+                <label id="label-payment">Способ оплаты</label>
+                <label class="radio-row"><input type="radio" name="payment_method" value="cash" checked><span id="payment-cash-label">Наличные, +20K ₫ за приём денег Grab</span></label>
+                <label class="radio-row" id="payment-qr-row"><input type="radio" name="payment_method" value="qr"><span id="payment-qr-label">QR</span></label>
+            </div>
+            <div class="field"><label id="label-comment">Комментарий</label><textarea id="order-comment"></textarea></div>
+            <div class="summary">
+                <div class="line"><span id="subtotal-label">Сумма блюд</span><strong id="subtotal">0 ₫</strong></div>
+                <div class="line"><span id="delivery-label">Доставка/сбор</span><strong id="delivery">0 ₫</strong></div>
+                <div class="note" id="delivery-note"></div>
+                <div class="line total"><span id="total-label">Итого</span><strong id="total">0 ₫</strong></div>
+            </div>
+            <button class="checkout" id="checkout" type="submit">Оформить заказ</button>
+        </form>
+    </section>
+
+    <section id="profile-tab" class="tab">
+        <div class="profile-header"><h1>Taste of Home</h1><p id="profile-subtitle">История заказов</p></div>
+        <div class="profile-card">
+            <div class="tg-user-card" id="profile-tg-user-card">
+                <div class="tg-avatar" id="profile-tg-avatar">T</div>
+                <div>
+                    <div class="tg-kicker" id="profile-tg-kicker">Ваш профиль</div>
+                    <div class="tg-name" id="profile-tg-name">Гость</div>
+                    <div class="tg-meta" id="profile-tg-meta">Telegram</div>
+                </div>
+            </div>
+            <h2 id="history-title">История заказов</h2>
+            <p class="profile-hint"></p>
+            <button class="history-refresh" type="button" id="history-refresh">Обновить заказы</button>
+            <div id="history"></div>
+        </div>
+    </section>
+
+    <section id="reviews-tab" class="tab">
+        <div class="reviews-head">
+            <h1 id="reviews-page-title">Отзывы</h1>
+            <p id="reviews-page-subtitle">Оцените заказ или посмотрите, что пишут гости.</p>
+        </div>
+        <div id="reviews-disabled" class="review-disabled" style="display:none;">Отзывы временно отключены.</div>
+        <div id="review-form-block" class="review-form">
+            <div id="review-thanks" class="review-thanks">Спасибо! Отзыв отправлен.</div>
+            <h2 id="review-form-title">Оставить отзыв</h2>
+            <div class="field"><label id="review-name-label">Имя</label><input id="review-name" autocomplete="name"></div>
+            <div class="field"><label id="review-rating-label">Оценка</label><div class="star-row" id="review-stars"></div></div>
+            <div class="field"><label id="review-text-label">Отзыв</label><textarea id="review-text" maxlength="1200" placeholder="Напишите пару слов"></textarea></div>
+            <button class="checkout" id="review-submit" type="button">Отправить отзыв</button>
+        </div>
+        <div class="section-title" style="padding-top:4px;"><span id="reviews-list-title">Отзывы гостей</span></div>
+        <div id="reviews-list"></div>
+    </section>
+</div>
+
+<div class="bottom-nav">
+    <button class="nav active" data-tab="menu"><span class="nav-icon">🍽️</span><span id="nav-menu">Меню</span></button>
+    <button class="nav" data-tab="cart"><span class="nav-icon">🛒<span class="cart-badge" id="cart-badge">0</span></span><span id="nav-cart">Корзина</span></button>
+    <button class="nav" data-tab="reviews"><span class="nav-icon">⭐</span><span id="nav-reviews">Отзывы</span></button>
+    <button class="nav" data-tab="profile"><span class="nav-icon">👤</span><span id="nav-profile">Профиль</span></button>
+</div>
+
+<div class="modal" id="product-modal">
+    <div class="sheet">
+        <img id="modal-img" src="" alt="">
+        <h2 id="modal-name" style="margin:16px 0 6px;"></h2>
+        <div id="modal-price" class="price"></div>
+        <p id="modal-desc" style="color:#666;"></p>
+        <div id="modal-sides"></div>
+        <div class="modal-actions">
+            <button type="button" class="secondary" id="modal-close">Закрыть</button>
+            <button type="button" class="checkout" id="modal-add" style="margin:0;">Добавить</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="payment-qr-modal">
+    <div class="sheet">
+        <h2 id="payment-qr-title" style="margin:0 0 8px;">Оплата по QR</h2>
+        <p id="payment-qr-subtitle" style="color:#666;margin:0 0 14px;">Отсканируйте QR-код и нажмите «Я оплатил».</p>
+
+        <div class="qr-box">
+            <img id="payment-qr-image" class="qr-image" src="" alt="QR" style="display:none;">
+            <div id="payment-qr-placeholder" class="qr-placeholder">QR-код ещё не загружен администратором.</div>
+            <div class="payment-hint" id="payment-qr-note"></div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="secondary" id="payment-qr-close">Закрыть</button>
+            <button type="button" class="checkout" id="payment-qr-paid" style="margin:0;">Я оплатил</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="review-modal">
+    <div class="sheet">
+        <h2 id="review-modal-title" style="margin:0 0 8px;">Оцените заказ</h2>
+        <p id="review-modal-subtitle" style="color:#666;margin:0 0 14px;">Поставьте звёзды и напишите пару слов.</p>
+        <div class="field"><label id="review-modal-name-label">Имя</label><input id="review-modal-name" autocomplete="name"></div>
+        <div class="field"><label id="review-modal-rating-label">Оценка</label><div class="star-row" id="review-modal-stars"></div></div>
+        <div class="field"><label id="review-modal-text-label">Отзыв</label><textarea id="review-modal-text" maxlength="1200"></textarea></div>
+        <div class="modal-actions">
+            <button type="button" class="secondary" id="review-modal-later">Позже</button>
+            <button type="button" class="checkout" id="review-modal-submit" style="margin:0;">Отправить отзыв</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="order-detail-modal">
+    <div class="sheet order-detail-sheet">
+        <button type="button" class="detail-close" id="order-detail-close">×</button>
+        <div id="order-detail-content"></div>
+    </div>
+</div>
+
+
+<script>
+'use strict';
+// FIX v2528: self-hosted ngrok /app uses same-origin API. No GitHub ?api and no localhost on phone.
+
+
+
+const APP_CONFIG = {
+    API_BASE_URL: 'https://venus-extenuate-outthink.ngrok-free.dev',
+    LOCAL_API_BASE_URL: 'http://localhost:8010',
+    GROUP_URL: 'https://t.me/homemade_global_cuisine'
+};
+
+function cleanBaseUrl(value){
+    return String(value || '').trim().replace(/\/+$/, '');
+}
+function safeLocalStorageGet(key){
+    try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
+}
+function safeLocalStorageSet(key, value){
+    try { localStorage.setItem(key, value); } catch (_) {}
+}
+function addUniqueApiCandidate(list, value){
+    const cleaned = cleanBaseUrl(value);
+    if (cleaned && !list.includes(cleaned)) list.push(cleaned);
+}
+function isLocalOrPreviewHost(){
+    const host = String(window.location.hostname || '').toLowerCase();
+    return window.location.protocol === 'file:'
+        || host === 'localhost'
+        || host === '127.0.0.1'
+        || host.includes('chatgpt.com')
+        || host.includes('openai.com')
+        || host.includes('oaiusercontent.com')
+        || host.includes('sandbox');
+}
+function isGithubPagesHost(){
+    return String(window.location.hostname || '').toLowerCase().includes('github.io');
+}
+function isBackendHosted(){
+    return window.location.protocol.indexOf('http') === 0 && !isGithubPagesHost() && !isLocalOrPreviewHost();
+}
+function getApiCandidates(){
+    const params = new URLSearchParams(window.location.search || '');
+    const fromUrl = params.get('api') || params.get('backend') || '';
+    const saved = safeLocalStorageGet('toh_api_base_url');
+    const list = [];
+
+    // 1. Если открыли ссылку с ?api=, используем её.
+    if (fromUrl) {
+        addUniqueApiCandidate(list, fromUrl);
+        safeLocalStorageSet('toh_api_base_url', cleanBaseUrl(fromUrl));
+    }
+
+    // 2. Главный фикс: если Mini App открыт с ngrok/backend /app,
+    // API всегда тот же самый домен. Никакого localhost на телефоне.
+    if (isBackendHosted()) {
+        addUniqueApiCandidate(list, window.location.origin);
+    }
+
+    // 3. Локальная проверка с ПК.
+    if (isLocalOrPreviewHost()) {
+        addUniqueApiCandidate(list, APP_CONFIG.LOCAL_API_BASE_URL);
+        addUniqueApiCandidate(list, saved);
+        addUniqueApiCandidate(list, APP_CONFIG.API_BASE_URL);
+    } else {
+        addUniqueApiCandidate(list, saved);
+        addUniqueApiCandidate(list, APP_CONFIG.API_BASE_URL);
+    }
+    return list;
+}
+
+APP_CONFIG.API_CANDIDATES = getApiCandidates();
+APP_CONFIG.API_BASE_URL = APP_CONFIG.API_CANDIDATES[0] || cleanBaseUrl(APP_CONFIG.API_BASE_URL);
+console.log('Taste of Home API candidates:', APP_CONFIG.API_CANDIDATES);
+console.log('Taste of Home API_BASE_URL:', APP_CONFIG.API_BASE_URL);
+
+const tg = window.Telegram?.WebApp || {
+    ready(){},
+    expand(){},
+    showAlert(message){ alert(message); },
+    showConfirm(message, callback){ callback(confirm(message)); },
+    HapticFeedback:{ impactOccurred(){} },
+    initDataUnsafe:{}
+};
+
+tg.ready();
+tg.expand();
+
+const PLACEHOLDER_IMG = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="500" height="360"><rect width="100%" height="100%" fill="#eeeeee"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#999" font-size="26">Taste of Home</text></svg>`);
+
+// FIX v2516: Telegram WebView kept old search text and hid products on phone.
+// Search must start empty on every app open, and it must search both RU and EN names.
+try { localStorage.removeItem('toh_search'); } catch (e) {}
+
+const state = {
+    isLoading:true,
+    lang:localStorage.getItem('toh_lang') || 'ru',
+    products:[],
+    categories:[],
+    banners:[],
+    reviews:[],
+    reviewSettings:{reviews_enabled:'1', reviews_auto_publish:'1', review_followup_enabled:'1'},
+    paymentSettings:{payment_qr_enabled:'1', payment_qr_image_url:'', payment_qr_image_full_url:'', payment_qr_image_data_url:'', payment_qr_note_ru:'', payment_qr_note_en:''},
+    currentQrOrder:null,
+    reviewRating:5,
+    reviewModalRating:5,
+    reviewOrder:null,
+    deliverySettings:[],
+    activeCategory:'all',
+    searchTerm:'',
+    cart:loadJson('toh_cart', []),
+    history:loadJson('toh_history', []),
+    orders:[],
+    selectedProduct:null,
+    selectedSide:null,
+    selectedExtras:[],
+    workingHours:'',
+    workingHoursRu:'',
+    workingHoursEn:'',
+    heroTimer:null
+};
+
+const i18n = {
+    ru:{menu:'Меню',cart:'Корзина',profile:'Профиль',search:'Поиск блюд...',loading:'Загрузка...',all:'Все',add:'Добавить',close:'Закрыть',chooseSide:'Выберите гарнир',side:'Гарнир',needSide:'Выберите гарнир',unavailable:'Нет в наличии',cartEmpty:'Корзина пустая',name:'Имя',phone:'Телефон',type:'Получение',delivery:'Доставка',pickup:'Самовывоз',district:'Район',address:'Адрес',deliveryDateTime:'Выберите время, к которому заказ должен быть готов',deliveryDateTimeNote:'Выберите дату и время.',payment:'Способ оплаты',cash:'Наличные',transfer:'Перевод',card:'Карта',comment:'Комментарий',subtotal:'Сумма блюд',deliveryFee:'Доставка/сбор',total:'Итого',checkout:'Оформить заказ',required:'Заполните обязательные поля',chooseDateTime:'Выберите дату и время доставки',confirm:'Оформить заказ?',sending:'Отправляем...',success:'Заказ оформлен',history:'История заказов',noHistory:'Заказов пока нет',free:'Бесплатно',grab:'По тарифу Grab',cashFee:'Доплата за оплату наличными',deliveryTimePrefix:'Время доставки',addOn:'Дополнительно',workingHours:'Часы работы',reviews:'Отзывы',reviewsSubtitle:'Оцените заказ или посмотрите, что пишут гости.',reviewForm:'Оставить отзыв',reviewName:'Имя',reviewRating:'Оценка',reviewText:'Отзыв',reviewPlaceholder:'Напишите пару слов',reviewSubmit:'Отправить отзыв',reviewGuests:'Отзывы гостей',reviewEmpty:'Отзывов пока нет',reviewThanks:'Спасибо! Отзыв отправлен.',reviewDisabled:'Отзывы временно отключены.',reviewLater:'Позже',reviewOrderTitle:'Оцените заказ',reviewOrderSubtitle:'Поставьте звёзды и напишите пару слов.',reviewRequired:'Поставьте оценку и напишите отзыв',noProductsAvailableTitle:'Сейчас доступных товаров нет',noProductsAvailableText:'Пожалуйста, подождите немного. Мы скоро всё обновим.',noProductsSearchEmpty:'Ничего не найдено',paymentQr:'QR',paymentQrTitle:'Оплата по QR',paymentQrSubtitle:'Отсканируйте QR-код и нажмите «Я оплатил».',paymentQrMissing:'QR-код ещё не загружен администратором.',paymentQrPaid:'Я оплатил',paymentQrClose:'Закрыть',paymentQrNeedOrder:'Сначала оформите заказ, потом нажмите «Я оплатил».',paymentQrSent:'Администратору отправлено уведомление об оплате.',paymentQrError:'Не удалось отправить уведомление об оплате',loadError:'Не удалось загрузить меню. Проверьте backend и ссылку ngrok.',retry:'Обновить',added:'Добавлено в корзину'},
+    en:{menu:'Menu',cart:'Cart',profile:'Profile',search:'Search dishes...',loading:'Loading...',all:'All',add:'Add',close:'Close',chooseSide:'Choose a side dish',side:'Side',needSide:'Choose a side dish',unavailable:'Unavailable',cartEmpty:'Cart is empty',name:'Name',phone:'Phone',type:'Type',delivery:'Delivery',pickup:'Pickup',district:'District',address:'Address',deliveryDateTime:'Delivery date and time',deliveryDateTimeNote:'Choose exact date and time.',payment:'Payment method',cash:'Cash',transfer:'Transfer',card:'Card',comment:'Comment',subtotal:'Food subtotal',deliveryFee:'Delivery/fee',total:'Total',checkout:'Place order',required:'Fill required fields',chooseDateTime:'Choose delivery date and time',confirm:'Place order?',sending:'Sending...',success:'Order placed',history:'Order history',noHistory:'No orders yet',free:'Free',grab:'Grab tariff',cashFee:'Cash payment fee',deliveryTimePrefix:'Delivery time',addOn:'Add on',workingHours:'Working hours',reviews:'Reviews',reviewsSubtitle:'Rate your order or see what guests write.',reviewForm:'Leave a review',reviewName:'Name',reviewRating:'Rating',reviewText:'Review',reviewPlaceholder:'Write a few words',reviewSubmit:'Send review',reviewGuests:'Guest reviews',reviewEmpty:'No reviews yet',reviewThanks:'Thank you! Review sent.',reviewDisabled:'Reviews are temporarily disabled.',reviewLater:'Later',reviewOrderTitle:'Rate your order',reviewOrderSubtitle:'Choose stars and write a few words.',reviewRequired:'Choose a rating and write a review',noProductsAvailableTitle:'No products are available right now',noProductsAvailableText:'Please wait a little. We will update everything soon.',noProductsSearchEmpty:'Nothing found',paymentQr:'QR',paymentQrTitle:'QR payment',paymentQrSubtitle:'Scan the QR code and tap “I paid”.',paymentQrMissing:'QR code has not been uploaded by admin yet.',paymentQrPaid:'I paid',paymentQrClose:'Close',paymentQrNeedOrder:'Place the order first, then tap “I paid”.',paymentQrSent:'Payment notification has been sent to admin.',paymentQrError:'Failed to send payment notification',loadError:'Failed to load menu. Check backend and Cloudflare URL.',retry:'Refresh',added:'Added to cart'}
+};
+
+function t(key){ return i18n[state.lang][key] || key; }
+function loadJson(key, fallback){
+    try {
+        return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
+    } catch (error) {
+        console.warn('LOCALSTORAGE READ ERROR:', key, error);
+        return fallback;
+    }
+}
+
+function cartItemForStorage(item){
+    const safeImg = item?.img && !String(item.img).startsWith('data:image') ? String(item.img) : '';
+    return {
+        cartKey:String(item.cartKey || ''),
+        id:String(item.id || ''),
+        img:safeImg,
+        name:String(item.name || ''),
+        base_price:Number(item.base_price || 0),
+        price:Number(item.price || 0),
+        extras:Array.isArray(item.extras) ? item.extras : [],
+        selected_extras:Array.isArray(item.selected_extras) ? item.selected_extras : [],
+        qty:Math.max(1, Number(item.qty || 1)),
+        side_choice:String(item.side_choice || ''),
+        side_choice_ru:String(item.side_choice_ru || ''),
+        side_choice_en:String(item.side_choice_en || '')
+    };
+}
+
+function saveCart(){
+    const safeCart = state.cart.map(cartItemForStorage).filter(item => item.id && item.qty > 0);
+    const data = JSON.stringify(safeCart);
+
+    try {
+        localStorage.setItem('toh_cart', data);
+    } catch (error) {
+        console.warn('CART STORAGE QUOTA FIX: очищаю старую тяжёлую корзину', error);
+        try {
+            localStorage.removeItem('toh_cart');
+            localStorage.setItem('toh_cart', data);
+        } catch (secondError) {
+            console.error('CART STORAGE FAILED:', secondError);
+            tg.showAlert('Корзина очищена из-за переполненной памяти браузера. Добавьте товар ещё раз.');
+            state.cart = [];
+            try { localStorage.removeItem('toh_cart'); } catch (_) {}
+        }
+    }
+}
+function saveHistory(){ localStorage.setItem('toh_history', JSON.stringify(state.history)); }
+function formatPrice(value){
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '0 ₫';
+    const sign = num < 0 ? '-' : '';
+    const abs = Math.abs(num);
+    if (abs >= 1000) {
+        const k = abs / 1000;
+        const rounded = Number.isInteger(k) ? String(k) : String(Math.round(k * 10) / 10).replace('.', ',');
+        return `${sign}${rounded}K ₫`;
+    }
+    return `${sign}${abs.toLocaleString('ru-RU')} ₫`;
+}
+function escapeHtml(value){ return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch])); }
+function apiUrl(path){ if (String(path).startsWith('http')) return path; return APP_CONFIG.API_BASE_URL.replace(/\/$/, '') + '/' + String(path).replace(/^\//, ''); }
+
+async function apiGet(path){
+    const url = apiUrl(path) + (String(path).includes('?') ? '&' : '?') + '_=' + Date.now();
+    const response = await fetch(url, { cache:'no-store', headers:{ 'Cache-Control':'no-cache', 'Pragma':'no-cache', 'ngrok-skip-browser-warning':'true' } });
+    if (!response.ok) throw new Error(path + ' HTTP ' + response.status);
+    return response.json();
+}
+
+async function apiPost(path, body){
+    const response = await fetch(apiUrl(path), { method:'POST', cache:'no-store', headers:{ 'Content-Type':'application/json', 'Cache-Control':'no-cache', 'ngrok-skip-browser-warning':'true' }, body:JSON.stringify(body) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || data.message || 'Server error');
+    return data;
+}
+
+function imageOf(item){
+    const src = item?.image_data_url || item?.image_full_url || item?.image_url || item?.img || item?.image || '';
+    if (!src) return PLACEHOLDER_IMG;
+    if (String(src).startsWith('data:image') || String(src).startsWith('http')) return src;
+    return APP_CONFIG.API_BASE_URL.replace(/\/$/, '') + '/' + String(src).replace(/^\//, '');
+}
+
+function storageImageOf(item){
+    // В localStorage нельзя сохранять base64-картинки: они быстро переполняют память браузера.
+    const src = item?.image_full_url || item?.image_url || item?.img || item?.image || '';
+    if (!src || String(src).startsWith('data:image')) return '';
+    if (String(src).startsWith('http')) return src;
+    return APP_CONFIG.API_BASE_URL.replace(/\/$/, '') + '/' + String(src).replace(/^\//, '');
+}
+
+function cartDisplayImage(item){
+    const product = state.products.find(p => String(p.id) === String(item?.id));
+    return product?.img || item?.img || PLACEHOLDER_IMG;
+}
+
+function splitBilingualName(value){
+    const raw = String(value || '').trim();
+    if (!raw) return {name:'', ru:'', en:''};
+    let ru = raw, en = raw;
+    if (raw.includes('::')) { const p = raw.split('::'); ru = p.shift(); en = p.join('::'); }
+    else if (raw.includes(' / ')) { const p = raw.split(' / '); ru = p.shift(); en = p.join(' / '); }
+    else if (raw.includes('/')) { const p = raw.split('/'); ru = p.shift(); en = p.join('/'); }
+    else if (raw.includes(':')) { const p = raw.split(':'); ru = p.shift(); en = p.join(':'); }
+    ru = String(ru || '').trim(); en = String(en || '').trim();
+    const name = ru || en;
+    return { name, ru: ru || name, en: en || name };
+}
+
+function parseSides(value){
+    const one = item => {
+        if (item && typeof item === 'object') return { name:String(item.name || item.name_ru || item.name_en || '').trim(), name_ru:String(item.name_ru || item.name || item.name_en || '').trim(), name_en:String(item.name_en || item.name || item.name_ru || '').trim() };
+        const p = splitBilingualName(item);
+        return { name:p.name, name_ru:p.ru, name_en:p.en };
+    };
+    const list = Array.isArray(value) ? value : String(value || '').split('|');
+    return list.map(one).filter(item => item.name);
+}
+
+function parseExtraOptions(value){
+    const one = rawValue => {
+        if (rawValue && typeof rawValue === 'object') return { name:String(rawValue.name || rawValue.name_ru || rawValue.name_en || '').trim(), name_ru:String(rawValue.name_ru || rawValue.name || rawValue.name_en || '').trim(), name_en:String(rawValue.name_en || rawValue.name || rawValue.name_ru || '').trim(), price:Number(rawValue.price || 0) };
+        const raw = String(rawValue || '').trim();
+        const lastColon = raw.lastIndexOf(':');
+        let namePart = raw, pricePart = '0';
+        if (lastColon !== -1) { namePart = raw.slice(0, lastColon); pricePart = raw.slice(lastColon + 1); }
+        const p = splitBilingualName(namePart);
+        return { name:p.name, name_ru:p.ru, name_en:p.en, price:Number(String(pricePart || '0').replace(/[^0-9]/g, '') || 0) };
+    };
+    const list = Array.isArray(value) ? value : String(value || '').replace(/\r/g,'\n').replace(/\|/g,'\n').split('\n');
+    return list.map(one).filter(item => item.name);
+}
+
+function normalizeProduct(item){
+    return { id:String(item.id), category:String(item.category_id || item.category || ''), name:{ru:item.name_ru || item.name?.ru || item.name || '', en:item.name_en || item.name?.en || item.name_ru || item.name || ''}, desc:{ru:item.description_ru || item.desc?.ru || item.description || '', en:item.description_en || item.desc?.en || item.description_ru || item.description || ''}, price:Number(item.price || 0), old_price:item.old_price || null, img:imageOf(item), storage_img:storageImageOf(item), badge:item.badge || '', weight:item.weight || '', side_options:parseSides(item.side_options), extra_options:parseExtraOptions(item.extra_options), stock:Number(item.stock ?? -1), quantity:Number(item.quantity ?? -1), delivery_time_type:item.delivery_time_type || '', delivery_time:item.delivery_time || '', delivery_time_label:item.delivery_time_label || '', wait_minutes:Number(item.wait_minutes || item.prep_time_minutes || 0), is_available:item.is_available !== 0 && item.is_available !== false, sort_order:Number(item.sort_order || 100) };
+}
+function isProductVisibleForClient(p){
+    return Boolean(p && p.is_available && Number(p.stock ?? -1) !== 0);
+}
+function productName(p){ return state.lang === 'ru' ? (p.name.ru || p.name.en) : (p.name.en || p.name.ru); }
+function productDesc(p){ return state.lang === 'ru' ? (p.desc.ru || p.desc.en) : (p.desc.en || p.desc.ru); }
+function optionLabel(o){ return state.lang === 'ru' ? (o.name_ru || o.name || o.name_en || '') : (o.name_en || o.name || o.name_ru || ''); }
+function categoryTitle(c){ return state.lang === 'ru' ? (c.title_ru || c.name_ru || c.title || c.title_en || c.name || '') : (c.title_en || c.name_en || c.title || c.title_ru || c.name || ''); }
+function extrasLabel(extras){ return (extras || []).map(x => `${optionLabel(x)}${Number(x.price || 0) ? ' +' + formatPrice(x.price) : ''}`).join(', '); }
+function getPaymentMethod(){ return document.querySelector('input[name="payment_method"]:checked')?.value || 'cash'; }
+function pad2(v){ return String(v).padStart(2,'0'); }
+function toDateTimeLocalValue(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+function setDefaultDeliveryDateTime(){ const input = document.getElementById('order-delivery-datetime'); if (!input) return; input.removeAttribute('min'); if (!input.value) { const d = new Date(); d.setSeconds(0,0); input.value = toDateTimeLocalValue(d); } }
+function formatDeliveryDateTime(value){ if (!value) return ''; const d = new Date(value); if (Number.isNaN(d.getTime())) return value; return d.toLocaleString(state.lang === 'ru' ? 'ru-RU' : 'en-US', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}); }
+
+function districtApiValue(value){ return {districtOceanPark1:'Ocean Park 1', districtOceanPark2:'Ocean Park 2', districtEcoPark:'Eco Park', districtHanoi:'Hanoi'}[value] || value; }
+function deliveryKeyFromDistrict(d){ return {'Ocean Park 1':'districtOceanPark1','Ocean Park 2':'districtOceanPark2','Eco Park':'districtEcoPark','Hanoi':'districtHanoi'}[d] || d; }
+
+function calculateDelivery(subtotal){
+    const type = document.getElementById('order-type')?.value || 'delivery';
+    const isDelivery = type === 'delivery';
+    const district = districtApiValue(document.getElementById('order-district')?.value || 'districtOceanPark1');
+    const cashFee = (isDelivery && getPaymentMethod() === 'cash') ? 20000 : 0;
+    if (!isDelivery) return {delivery_fee:0, payment_cash_fee:0, delivery_total:0, delivery_label:t('free'), delivery_note:''};
+    const setting = state.deliverySettings.find(x => x.district === district);
+    let base = 0, label = t('free'), note = '';
+    if (setting) {
+        const min = Number(setting.min_free_amount || 0), fee = Number(setting.delivery_fee || 0), grabLabel = setting.grab_label || '';
+        if (district === 'Hanoi' && subtotal < 200000 && grabLabel) { label = grabLabel; note = grabLabel; }
+        else if (min > 0 && subtotal < min) { base = fee; label = formatPrice(base); note = `${state.lang === 'ru' ? 'Бесплатно от' : 'Free from'} ${formatPrice(min)}.`; }
+        else { label = t('free'); note = min ? `${state.lang === 'ru' ? 'Бесплатная доставка от' : 'Free delivery from'} ${formatPrice(min)}.` : ''; }
+    } else {
+        if (district === 'Ocean Park 2' || district === 'Eco Park') base = subtotal >= 200000 ? 0 : 50000;
+        if (district === 'Hanoi') { if (subtotal >= 500000) base = 0; else if (subtotal >= 200000) base = 80000; else { base = 0; label = t('grab'); } }
+        if (base) label = formatPrice(base);
+    }
+    if (cashFee) { label = `${label} + ${formatPrice(cashFee)}`; note = `${note ? note + ' ' : ''}${t('cashFee')}: ${formatPrice(cashFee)}.`; }
+    return {delivery_fee:base, payment_cash_fee:cashFee, delivery_total:base + cashFee, delivery_label:label, delivery_note:note};
+}
+
+
+function updatePaymentLabels(){
+    const type = document.getElementById('order-type')?.value || 'delivery';
+    const cashLabel = document.getElementById('payment-cash-label');
+    const qrLabel = document.getElementById('payment-qr-label');
+    if (cashLabel) {
+        if (state.lang === 'ru') cashLabel.textContent = type === 'delivery' ? 'Наличные курьеру' : 'Наличные при самовывозе';
+        else cashLabel.textContent = type === 'delivery' ? 'Cash to courier' : 'Cash on pickup';
+    }
+    if (qrLabel) qrLabel.textContent = state.lang === 'ru' ? 'QR-оплата' : 'QR payment';
+}
+
+function applyTexts(){
+    document.documentElement.lang = state.lang;
+    document.getElementById('lang-ru').classList.toggle('active', state.lang === 'ru');
+    document.getElementById('lang-en').classList.toggle('active', state.lang === 'en');
+    const ids = {menu:'menu-title', cart:'cart-title', profile:'nav-profile', name:'label-name', phone:'label-phone', type:'label-type', district:'label-district', address:'label-address', deliveryDateTime:'label-delivery-datetime', deliveryDateTimeNote:'delivery-datetime-note', payment:'label-payment', cash:'payment-cash-label', comment:'label-comment', subtotal:'subtotal-label', deliveryFee:'delivery-label', total:'total-label', checkout:'checkout', history:'profile-subtitle', workingHours:'working-hours-title'};
+    Object.entries(ids).forEach(([key,id]) => { const el = document.getElementById(id); if (el) el.textContent = t(key); });
+    const qrLabel = document.getElementById('payment-qr-label'); if (qrLabel) qrLabel.textContent = t('paymentQr');
+    const qrRow = document.getElementById('payment-qr-row'); if (qrRow) qrRow.style.display = String(state.paymentSettings?.payment_qr_enabled ?? '1') === '1' ? 'flex' : 'none';
+    updatePaymentLabels();
+    updateTelegramUserCard();
+    document.getElementById('nav-menu').textContent = t('menu');
+    document.getElementById('nav-cart').textContent = t('cart');
+    document.getElementById('nav-reviews').textContent = t('reviews');
+    document.getElementById('history-title').textContent = t('history');
+    const reviewTexts = {
+        'reviews-page-title':'reviews',
+        'reviews-page-subtitle':'reviewsSubtitle',
+        'review-form-title':'reviewForm',
+        'review-name-label':'reviewName',
+        'review-rating-label':'reviewRating',
+        'review-text-label':'reviewText',
+        'review-submit':'reviewSubmit',
+        'reviews-list-title':'reviewGuests',
+        'review-thanks':'reviewThanks',
+        'reviews-disabled':'reviewDisabled',
+        'review-modal-title':'reviewOrderTitle',
+        'review-modal-subtitle':'reviewOrderSubtitle',
+        'review-modal-name-label':'reviewName',
+        'review-modal-rating-label':'reviewRating',
+        'review-modal-text-label':'reviewText',
+        'review-modal-later':'reviewLater',
+        'review-modal-submit':'reviewSubmit',
+        'payment-qr-title':'paymentQrTitle',
+        'payment-qr-subtitle':'paymentQrSubtitle',
+        'payment-qr-close':'paymentQrClose',
+        'payment-qr-paid':'paymentQrPaid'
+    };
+    Object.entries(reviewTexts).forEach(([id,key]) => { const el = document.getElementById(id); if (el) el.textContent = t(key); });
+    const reviewText = document.getElementById('review-text'); if (reviewText) reviewText.placeholder = t('reviewPlaceholder');
+    const reviewModalText = document.getElementById('review-modal-text'); if (reviewModalText) reviewModalText.placeholder = t('reviewPlaceholder');
+    document.getElementById('order-type').options[0].textContent = t('delivery');
+    document.getElementById('order-type').options[1].textContent = t('pickup');
+}
+
+function renderHero(){
+    const hero = document.getElementById('hero');
+
+    const oldInput = document.getElementById('search-input');
+    if (oldInput) {
+        state.searchTerm = oldInput.value || '';
+    }
+
+    const banners = state.banners.length
+        ? state.banners
+        : [{
+            title_ru:'Taste of Home',
+            title_en:'Taste of Home',
+            subtitle_ru:'Домашняя еда с теплом',
+            subtitle_en:'Homemade food with warmth'
+        }];
+
+    const safeBanners = banners.slice(0,3);
+
+    function bannerTitle(b){
+        return state.lang === 'ru'
+            ? (b.title_ru || b.title_en || 'Taste of Home')
+            : (b.title_en || b.title_ru || 'Taste of Home');
+    }
+
+    function bannerSubtitle(b){
+        return state.lang === 'ru'
+            ? (b.subtitle_ru || b.subtitle_en || '')
+            : (b.subtitle_en || b.subtitle_ru || '');
+    }
+
+    hero.innerHTML = `
+        ${safeBanners.map((b,i) => `
+            <div class="hero-slide ${i===0?'active':''}" data-hero-index="${i}" style="background-image:url('${escapeHtml(imageOf(b))}')"></div>
+        `).join('')}
+
+        <div class="hero-content hero-content-fixed">
+            <h1 class="hero-title" id="hero-fixed-title">${escapeHtml(bannerTitle(safeBanners[0] || {}))}</h1>
+            <p class="hero-subtitle" id="hero-fixed-subtitle">${escapeHtml(bannerSubtitle(safeBanners[0] || {}))}</p>
+            <div class="search">
+                <span>🔍</span>
+                <input id="search-input" placeholder="${escapeHtml(t('search'))}" value="${escapeHtml(state.searchTerm || '')}" autocomplete="off">
+            </div>
+        </div>
+    `;
+
+    clearInterval(state.heroTimer);
+
+    let idx = 0;
+
+    function updateHeroText(index){
+        const banner = safeBanners[index] || safeBanners[0] || {};
+        const titleEl = document.getElementById('hero-fixed-title');
+        const subtitleEl = document.getElementById('hero-fixed-subtitle');
+
+        if (titleEl) titleEl.textContent = bannerTitle(banner);
+        if (subtitleEl) subtitleEl.textContent = bannerSubtitle(banner);
+    }
+
+    state.heroTimer = setInterval(() => {
+        const slides = [...document.querySelectorAll('.hero-slide')];
+
+        if (slides.length <= 1) return;
+
+        slides[idx]?.classList.remove('active');
+        idx = (idx + 1) % slides.length;
+        slides[idx]?.classList.add('active');
+        updateHeroText(idx);
+    }, 4500);
+
+    const input = document.getElementById('search-input');
+
+    if (input) {
+        input.addEventListener('input', () => {
+            state.searchTerm = input.value || '';
+                renderProducts();
+        });
+    }
+}
+
+function renderWorkingHours(){
+    const block = document.getElementById('working-hours-block'), text = document.getElementById('working-hours-text');
+    const value = state.lang === 'ru' ? String(state.workingHoursRu || state.workingHours || '').trim() : String(state.workingHoursEn || state.workingHours || '').trim();
+    block.classList.toggle('active', Boolean(value));
+    text.textContent = value;
+}
+
+function renderCategories(){
+    const categories = [{id:'all', title_ru:t('all'), title_en:t('all')}, ...state.categories];
+    document.getElementById('categories').innerHTML = categories.map(c => `<button class="cat ${state.activeCategory===String(c.id)?'active':''}" data-cat="${escapeHtml(c.id)}">${escapeHtml(String(c.id)==='all' ? t('all') : categoryTitle(c))}</button>`).join('');
+}
+
+function renderDistricts(){
+    const defaults = [{district:'Ocean Park 1'}, {district:'Ocean Park 2'}, {district:'Eco Park'}, {district:'Hanoi'}];
+    const list = state.deliverySettings.length ? state.deliverySettings : defaults;
+    document.getElementById('order-district').innerHTML = list.map(item => `<option value="${escapeHtml(deliveryKeyFromDistrict(item.district))}">${escapeHtml(item.district)}</option>`).join('');
+}
+
+function normalizeSearchText(value){
+    return String(value || '')
+        .toLowerCase()
+        .replace(/ё/g,'е')
+        .replace(/[^a-zа-я0-9\s]/gi,' ')
+        .replace(/\s+/g,' ')
+        .trim();
+}
+function productSearchText(p){
+    const extras = (p.extra_options || []).map(e => [e.name, e.name_ru, e.name_en].join(' ')).join(' ');
+    const sides = (p.side_options || []).map(e => [e.name, e.name_ru, e.name_en].join(' ')).join(' ');
+    const cat = (state.categories || []).find(c => String(c.id) === String(p.category)) || {};
+    return normalizeSearchText([
+        p?.name?.ru, p?.name?.en,
+        p?.desc?.ru, p?.desc?.en,
+        p?.weight, p?.badge,
+        cat.title_ru, cat.title_en, cat.name_ru, cat.name_en, cat.title, cat.name,
+        extras, sides
+    ].join(' '));
+}
+function filteredProducts(){
+    const inputValue = document.getElementById('search-input')?.value || state.searchTerm || '';
+    const term = normalizeSearchText(inputValue);
+
+    state.searchTerm = inputValue;
+
+    return state.products.filter(p => {
+        const byStock = isProductVisibleForClient(p);
+        const byCategory = state.activeCategory === 'all' || String(p.category) === String(state.activeCategory);
+        const text = productSearchText(p);
+        return byStock && byCategory && (!term || text.includes(term));
+    });
+}
+
+
+function stockText(p){
+    const stock = Number(p?.stock ?? -1);
+    if (!Number.isFinite(stock) || stock < 0) return '';
+    if (state.lang === 'en') return `Left: ${stock}`;
+    return `Осталось: ${stock}`;
+}
+function timeText(p){
+    const raw = String(p?.delivery_time_label || p?.delivery_time || '').trim();
+    if (!raw) return '';
+    return raw;
+}
+
+function renderEmptyProductsState(){
+    return `
+        <div class="empty-products-state">
+            <span class="empty-products-emoji">😔</span>
+            <h3 class="empty-products-title">${escapeHtml(t('noProductsAvailableTitle'))}</h3>
+            <p class="empty-products-text">${escapeHtml(t('noProductsAvailableText'))}</p>
+        </div>
+    `;
+}
+
+function renderProducts(){
+    const box = document.getElementById('products');
+    if (state.isLoading) { box.innerHTML = `<div class="empty">${t('loading')}</div>`; return; }
+
+    const visibleProducts = state.products.filter(isProductVisibleForClient);
+    const list = filteredProducts();
+
+    if (!visibleProducts.length) {
+        box.innerHTML = renderEmptyProductsState();
+        return;
+    }
+
+    if (!list.length) {
+        const hasSearch = Boolean(normalizeSearchText(state.searchTerm));
+        box.innerHTML = hasSearch
+            ? `<div class="empty-search-box"><strong>${escapeHtml(t('noProductsSearchEmpty'))}</strong><span>${state.lang === 'en' ? 'Clear the search to show all dishes.' : 'Очистите поиск, чтобы снова показать все блюда.'}</span><button type="button" class="clear-search-btn" id="clear-search">${state.lang === 'en' ? 'Show all dishes' : 'Показать все блюда'}</button></div>`
+            : `<div class="empty">${escapeHtml(t('noProductsSearchEmpty'))}</div>`;
+        return;
+    }
+
+    box.innerHTML = list.map(p => { const stock = stockText(p); const time = timeText(p); return `<article class="product" data-product="${escapeHtml(p.id)}">${p.badge ? `<div class="badge">${escapeHtml(p.badge)}</div>` : ''}<img src="${escapeHtml(p.img)}" alt="" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'"><div class="product-body"><div class="product-name">${escapeHtml(productName(p))}</div>${p.weight ? `<div class="product-weight">${escapeHtml(p.weight)}</div>` : ''}${(stock || time) ? `<div class="product-meta-row">${stock ? `<span class="product-stock-pill ${Number(p.stock) <= 3 ? 'low' : ''}">📦 ${escapeHtml(stock)}</span>` : ''}${time ? `<span class="product-time-pill">⏱ ${escapeHtml(time)}</span>` : ''}</div>` : ''}${p.side_options.length ? `<div class="side-mark">${t('side')}: ${p.side_options.map(optionLabel).map(escapeHtml).join(' / ')}</div>` : ''}<div class="product-bottom"><div class="price">${formatPrice(p.price)}</div><button class="add" type="button" data-add="${escapeHtml(p.id)}">+</button></div></div></article>`; }).join('');
+}
+
+function openProduct(id){
+    const p = state.products.find(x => String(x.id) === String(id));
+    if (!p) return;
+    state.selectedProduct = p;
+    state.selectedSide = p.side_options.length ? p.side_options[0] : null;
+    state.selectedExtras = [];
+    document.getElementById('modal-img').src = p.img;
+    document.getElementById('modal-name').textContent = productName(p);
+    document.getElementById('modal-price').textContent = formatPrice(p.price);
+    document.getElementById('modal-desc').textContent = productDesc(p);
+    document.getElementById('modal-close').textContent = t('close');
+    document.getElementById('modal-add').textContent = t('add');
+    const sideHtml = p.side_options.length ? `<h3 style="margin:14px 0 8px;">${t('chooseSide')}</h3><div class="side-options">${p.side_options.map((s,i) => `<button type="button" class="side-option ${i===0?'active':''}" data-side-index="${i}">${escapeHtml(optionLabel(s))}</button>`).join('')}</div>` : '';
+    const extrasHtml = p.extra_options.length ? `<div class="extra-options"><div class="extra-title">${t('addOn')}</div>${p.extra_options.map((e,i) => `<label class="extra-option" data-extra-index="${i}"><input type="checkbox" data-extra-input="${i}"><span><b>${escapeHtml(optionLabel(e))}</b>${Number(e.price||0) ? `<small>+${formatPrice(e.price)}</small>` : ''}</span></label>`).join('')}</div>` : '';
+    const modalMeta = `${(stockText(p) || timeText(p)) ? `<div class="product-meta-row" style="margin:12px 0;">${stockText(p) ? `<span class="product-stock-pill ${Number(p.stock) <= 3 ? 'low' : ''}">📦 ${escapeHtml(stockText(p))}</span>` : ''}${timeText(p) ? `<span class="product-time-pill">⏱ ${escapeHtml(timeText(p))}</span>` : ''}</div>` : ''}`;
+    document.getElementById('modal-sides').innerHTML = modalMeta + sideHtml + extrasHtml;
+    document.getElementById('product-modal').classList.add('active');
+}
+
+function normalizeCartExtras(list){ return (list || []).map(x => ({name:optionLabel(x), name_ru:x.name_ru || x.name || '', name_en:x.name_en || x.name || '', price:Number(x.price || 0)})); }
+function extrasKey(extras){ return (extras || []).map(x => `${x.name_ru || x.name}:${x.name_en || x.name}:${Number(x.price || 0)}`).sort().join('|') || 'no_extras'; }
+function extrasTotal(extras){ return (extras || []).reduce((sum,x) => sum + Number(x.price || 0), 0); }
+
+function getCartTargetRect(){
+    const icon = document.querySelector('[data-tab="cart"] .nav-icon') || document.getElementById('cart-badge');
+    if (!icon) return {left:window.innerWidth/2-29, top:window.innerHeight-120, width:58, height:58};
+    const r = icon.getBoundingClientRect();
+    return {left:r.left, top:r.top, width:r.width || 58, height:r.height || 58};
+}
+function showAddAnimation(product, triggerEl){
+    console.log('✅ ADD ANIMATION v1400');
+
+    const toast = document.getElementById('add-toast') || (() => {
+        const el = document.createElement('div');
+        el.id = 'add-toast';
+        el.className = 'add-toast';
+        document.body.appendChild(el);
+        return el;
+    })();
+
+    toast.innerHTML = `<span>✅</span><span>${escapeHtml(t('added'))}</span>`;
+    toast.classList.remove('show');
+    void toast.offsetWidth;
+    toast.classList.add('show');
+    clearTimeout(window.__toastTimer);
+    window.__toastTimer = setTimeout(() => toast.classList.remove('show'), 1700);
+
+    const navIcon = document.querySelector('[data-tab="cart"] .nav-icon');
+    const badge = document.getElementById('cart-badge');
+    [navIcon, badge].forEach(el => {
+        if (!el) return;
+        el.classList.remove('cart-bump');
+        void el.offsetWidth;
+        el.classList.add('cart-bump');
+    });
+
+    const card = triggerEl?.closest?.('.product') || [...document.querySelectorAll('.product')].find(el => String(el.dataset.product) === String(product?.id));
+    if (card) {
+        card.classList.remove('added-pulse');
+        void card.offsetWidth;
+        card.classList.add('added-pulse');
+    }
+
+    const addBtn = triggerEl?.closest?.('.add') || card?.querySelector('.add');
+    if (addBtn) {
+        addBtn.classList.remove('just-added');
+        void addBtn.offsetWidth;
+        addBtn.classList.add('just-added');
+    }
+
+    const pop = document.createElement('div');
+    pop.className = 'add-pop';
+    pop.textContent = '+1';
+
+    const sourceRect = triggerEl?.getBoundingClientRect?.() || card?.getBoundingClientRect?.();
+    if (sourceRect) {
+        pop.style.left = (sourceRect.left + sourceRect.width / 2 - 29) + 'px';
+        pop.style.top = (sourceRect.top + sourceRect.height / 2 - 29) + 'px';
+    } else {
+        pop.style.left = (window.innerWidth / 2 - 29) + 'px';
+        pop.style.top = (window.innerHeight / 2 - 29) + 'px';
+    }
+
+    document.body.appendChild(pop);
+    setTimeout(() => pop.remove(), 800);
+}
+
+function addToCart(product, sideChoice, selectedExtras = [], triggerEl = null){
+    if (!product || state.addLock) return;
+    state.addLock = true;
+    setTimeout(() => { state.addLock = false; }, 260);
+
+    if (!product.is_available) { tg.showAlert(t('unavailable')); return; }
+    if (product.side_options.length && !sideChoice) { tg.showAlert(t('needSide')); return; }
+
+    showAddAnimation(product, triggerEl);
+
+    const sideObj = sideChoice && typeof sideChoice === 'object'
+        ? sideChoice
+        : (product.side_options.find(o => optionLabel(o) === sideChoice || o.name === sideChoice || o.name_ru === sideChoice || o.name_en === sideChoice) || null);
+    const sideLabel = sideObj ? optionLabel(sideObj) : String(sideChoice || '');
+    const sideRu = sideObj ? (sideObj.name_ru || sideObj.name || sideLabel) : sideLabel;
+    const sideEn = sideObj ? (sideObj.name_en || sideObj.name || sideLabel) : sideLabel;
+    const extras = normalizeCartExtras(selectedExtras);
+    const key = `${product.id}__${sideRu || 'no_side'}__${sideEn || 'no_side'}__${extrasKey(extras)}`;
+    const totalExtra = extrasTotal(extras);
+    const existing = state.cart.find(x => x.cartKey === key);
+
+    if (existing) {
+        existing.qty = Number(existing.qty || 0) + 1;
+        existing.img = product.storage_img || existing.img || '';
+        existing.name = productName(product);
+        existing.base_price = Number(product.price || 0);
+        existing.price = Number(product.price || 0) + totalExtra;
+        existing.extras = extras;
+        existing.selected_extras = extras;
+        existing.side_choice = sideLabel;
+        existing.side_choice_ru = sideRu;
+        existing.side_choice_en = sideEn;
+    } else {
+        state.cart.push({
+            cartKey:key,
+            id:product.id,
+            img:product.storage_img || '',
+            name:productName(product),
+            base_price:Number(product.price || 0),
+            price:Number(product.price || 0) + totalExtra,
+            extras,
+            selected_extras:extras,
+            qty:1,
+            side_choice:sideLabel,
+            side_choice_ru:sideRu,
+            side_choice_en:sideEn
+        });
+    }
+
+    saveCart();
+    renderCart();
+    tg.HapticFeedback?.impactOccurred?.('medium');
+}
+
+function syncCart(){
+    state.cart = state.cart.map(item => {
+        const product = state.products.find(p => String(p.id) === String(item.id));
+        if (!product) return null;
+        const sideRu = item.side_choice_ru || item.side_choice || '';
+        const sideEn = item.side_choice_en || item.side_choice || '';
+        const sideObj = product.side_options.find(o => o.name_ru === sideRu || o.name_en === sideEn || o.name === item.side_choice) || null;
+        if (product.side_options.length && !sideObj) return null;
+        const extras = (item.extras || item.selected_extras || []).filter(e => product.extra_options.some(o => o.name === e.name || o.name_ru === e.name_ru || o.name_en === e.name_en));
+        const totalExtra = extrasTotal(extras);
+        const sideLabel = sideObj ? optionLabel(sideObj) : '';
+        return {...item, img:product.storage_img || item.img || '', name:productName(product), base_price:Number(product.price || 0), price:Number(product.price || 0) + totalExtra, extras, selected_extras:extras, side_choice:sideLabel, side_choice_ru:sideObj ? (sideObj.name_ru || sideObj.name || sideLabel) : '', side_choice_en:sideObj ? (sideObj.name_en || sideObj.name || sideLabel) : '', cartKey:`${product.id}__${sideObj ? (sideObj.name_ru || sideObj.name || sideLabel) : 'no_side'}__${sideObj ? (sideObj.name_en || sideObj.name || sideLabel) : 'no_side'}__${extrasKey(extras)}`};
+    }).filter(Boolean);
+    saveCart();
+}
+
+function renderCart(){
+    setDefaultDeliveryDateTime();
+
+    const list = document.getElementById('cart-list');
+    const badge = document.getElementById('cart-badge');
+
+    const totalQty = state.cart.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+
+    if (badge) {
+        badge.textContent = totalQty;
+        badge.style.display = totalQty ? 'flex' : 'none';
+    }
+
+    if (!list) return;
+
+    if (!state.cart.length) {
+        list.innerHTML = `<div class="empty">${t('cartEmpty')}</div>`;
+    } else {
+        list.innerHTML = state.cart.map((item, index) => `
+            <div class="cart-item" data-cart-index="${index}">
+                <img src="${escapeHtml(cartDisplayImage(item))}" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}'">
+
+                <div class="cart-main">
+                    <div class="cart-name">${escapeHtml(item.name)}</div>
+                    ${item.side_choice ? `<div class="cart-side">${t('side')}: ${escapeHtml(state.lang === 'ru' ? (item.side_choice_ru || item.side_choice) : (item.side_choice_en || item.side_choice))}</div>` : ''}
+                    ${item.extras?.length ? `<div class="cart-extra">${t('addOn')}: ${escapeHtml(extrasLabel(item.extras))}</div>` : ''}
+                    <div class="cart-price">${formatPrice(item.price)}</div>
+                </div>
+
+                <div class="qty">
+                    <button type="button" class="qty-btn" data-delta="-1" onclick="return window.__cartQtyButton(this, event);">−</button>
+                    <strong class="qty-number">${Number(item.qty || 0)}</strong>
+                    <button type="button" class="qty-btn" data-delta="1" onclick="return window.__cartQtyButton(this, event);">+</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    updateCartTotals();
+}
+
+function updateCartTotals(){
+    const subtotal = state.cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
+    const delivery = calculateDelivery(subtotal);
+    const total = subtotal + delivery.delivery_total;
+
+    const subtotalEl = document.getElementById('subtotal');
+    const deliveryEl = document.getElementById('delivery');
+    const deliveryNoteEl = document.getElementById('delivery-note');
+    const totalEl = document.getElementById('total');
+
+    if (subtotalEl) subtotalEl.textContent = formatPrice(subtotal);
+    if (deliveryEl) deliveryEl.textContent = delivery.delivery_label || formatPrice(delivery.delivery_total);
+    if (deliveryNoteEl) deliveryNoteEl.textContent = delivery.delivery_note || '';
+    if (totalEl) totalEl.textContent = formatPrice(total);
+
+    const orderType = document.getElementById('order-type');
+    const districtField = document.getElementById('district-field');
+    const addressField = document.getElementById('address-field');
+    const isDelivery = (orderType?.value || 'delivery') === 'delivery';
+
+    if (districtField) districtField.style.display = isDelivery ? 'block' : 'none';
+    if (addressField) addressField.style.display = isDelivery ? 'block' : 'none';
+    updatePaymentLabels();
+}
+
+function updateCartBadge(){
+    const totalQty = state.cart.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+    const badge = document.getElementById('cart-badge');
+
+    if (badge) {
+        badge.textContent = totalQty;
+        badge.style.display = totalQty ? 'flex' : 'none';
+    }
+}
+
+function updateQty(index, delta){
+    index = Number(index);
+    delta = Number(delta || 0);
+
+    if (!Number.isInteger(index) || index < 0 || index >= state.cart.length || !delta) {
+        console.warn('QTY CLICK FAILED:', { index, delta, cartLength: state.cart.length });
+        return false;
+    }
+
+    const item = state.cart[index];
+    const nextQty = Number(item.qty || 0) + delta;
+
+    if (nextQty <= 0) {
+        state.cart.splice(index, 1);
+    } else {
+        item.qty = nextQty;
+    }
+
+    saveCart();
+    renderCart();
+    tg.HapticFeedback?.impactOccurred?.('light');
+    console.log('✅ QTY CHANGED v2300:', { index, delta, cart: state.cart });
+    return true;
+}
+
+window.__cartQtyButton = function(button, event){
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    }
+
+    const row = button?.closest?.('.cart-item');
+    const index = Number(row?.dataset?.cartIndex);
+    const delta = Number(button?.dataset?.delta || 0);
+
+    return updateQty(index, delta) === true ? false : false;
+};
+
+window.cartQtyClick = function(event, index, delta){
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+    }
+
+    updateQty(index, delta);
+    return false;
+};
+
+function paymentQrImage(){
+    return state.paymentSettings?.payment_qr_image_data_url || state.paymentSettings?.payment_qr_image_full_url || state.paymentSettings?.payment_qr_image_url || '';
+}
+
+function paymentQrNote(){
+    return state.lang === 'ru'
+        ? (state.paymentSettings?.payment_qr_note_ru || '')
+        : (state.paymentSettings?.payment_qr_note_en || state.paymentSettings?.payment_qr_note_ru || '');
+}
+
+function openPaymentQrModal(order = null){
+    if (order) state.currentQrOrder = order;
+
+    const modal = document.getElementById('payment-qr-modal');
+    const img = document.getElementById('payment-qr-image');
+    const placeholder = document.getElementById('payment-qr-placeholder');
+    const note = document.getElementById('payment-qr-note');
+    const src = paymentQrImage();
+
+    if (img && placeholder) {
+        if (src) {
+            img.src = src;
+            img.style.display = 'block';
+            placeholder.style.display = 'none';
+        } else {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.textContent = t('paymentQrMissing');
+        }
+    }
+
+    if (note) note.textContent = paymentQrNote();
+    modal?.classList.add('active');
+}
+
+function closePaymentQrModal(){
+    document.getElementById('payment-qr-modal')?.classList.remove('active');
+}
+
+async function submitQrPaid(){
+    const order = state.currentQrOrder || {};
+    const orderId = order.order_id || order.id || '';
+    if (!orderId) {
+        tg.showAlert(t('paymentQrNeedOrder'));
+        return;
+    }
+
+    const btn = document.getElementById('payment-qr-paid');
+    const old = btn?.textContent || t('paymentQrPaid');
+
+    try {
+        if (btn) { btn.disabled = true; btn.textContent = t('sending'); }
+        const detailModalWasOpen = document.getElementById('order-detail-modal')?.classList.contains('active');
+        await apiPost(`/api/orders/${encodeURIComponent(orderId)}/payment-claimed`, {});
+        closePaymentQrModal();
+        await loadMyOrders();
+        renderHistory();
+        if (detailModalWasOpen) {
+            const updatedOrder = findOrderById(orderId) || order;
+            const detailContent = document.getElementById('order-detail-content');
+            if (detailContent) detailContent.innerHTML = renderOrderDetail(updatedOrder);
+        }
+        tg.showAlert(t('paymentQrSent'));
+        setTimeout(() => openReviewModal(order), 700);
+    } catch (error) {
+        console.error(error);
+        tg.showAlert(`${t('paymentQrError')}: ${error.message}`);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = old; }
+    }
+}
+
+function telegramPhoneFallback(){
+    const user = tg.initDataUnsafe?.user || {};
+    if (user.phone_number || user.phone) return user.phone_number || user.phone;
+    if (user.username) return '@' + String(user.username).replace(/^@/, '');
+    if (user.id) return 'Telegram ID: ' + user.id;
+    return localStorage.getItem('toh_phone') || 'Telegram';
+}
+function updateTelegramUserCard(){
+    const user = tg.initDataUnsafe?.user || {};
+    const name = currentTelegramName() || localStorage.getItem('toh_name') || (state.lang === 'ru' ? 'Гость' : 'Guest');
+    const username = user.username ? '@' + String(user.username).replace(/^@/, '') : '';
+    const id = user.id ? 'ID ' + user.id : '';
+    const meta = [username, id].filter(Boolean).join(' • ') || 'Telegram';
+    const avatarLetter = (name.trim()[0] || 'T').toUpperCase();
+    const avatarHtml = user.photo_url ? `<img src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(name)}">` : avatarLetter;
+    const pairs = [
+        ['tg-name','tg-meta','tg-avatar','tg-kicker'],
+        ['profile-tg-name','profile-tg-meta','profile-tg-avatar','profile-tg-kicker']
+    ];
+    pairs.forEach(([nameId, metaId, avatarId, kickerId]) => {
+        const nameEl = document.getElementById(nameId);
+        const metaEl = document.getElementById(metaId);
+        const avatarEl = document.getElementById(avatarId);
+        const kickerEl = document.getElementById(kickerId);
+        if (nameEl) nameEl.textContent = name;
+        if (metaEl) metaEl.textContent = meta;
+        if (avatarEl) avatarEl.innerHTML = avatarHtml;
+        if (kickerEl) kickerEl.textContent = state.lang === 'ru' ? 'Ваш профиль' : 'Your profile';
+    });
+    const hiddenName = document.getElementById('order-name');
+    const hiddenPhone = document.getElementById('order-phone');
+    if (hiddenName) hiddenName.value = name;
+    if (hiddenPhone) hiddenPhone.value = telegramPhoneFallback();
+}
+
+function buildOrderPayload(){
+    updateTelegramUserCard();
+    const name = (document.getElementById('order-name')?.value || currentTelegramName() || 'Telegram').trim();
+    const phone = (document.getElementById('order-phone')?.value || telegramPhoneFallback()).trim();
+    const type = document.getElementById('order-type').value;
+    const address = document.getElementById('order-address').value.trim();
+    const district = districtApiValue(document.getElementById('order-district').value);
+    const payment = getPaymentMethod();
+    const deliveryDateTimeValue = document.getElementById('order-delivery-datetime').value;
+    const deliveryDateTimeFormatted = formatDeliveryDateTime(deliveryDateTimeValue);
+    const userComment = document.getElementById('order-comment').value.trim();
+    if (type === 'delivery' && !address) { tg.showAlert(t('required')); return null; }
+    if (!deliveryDateTimeValue) { tg.showAlert(t('chooseDateTime')); return null; }
+    if (!state.cart.length) { tg.showAlert(t('cartEmpty')); return null; }
+    const subtotal = state.cart.reduce((sum,item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
+    const delivery = calculateDelivery(subtotal); const total = subtotal + delivery.delivery_total;
+    const comment = userComment ? `${t('deliveryTimePrefix')}: ${deliveryDateTimeFormatted}\n${userComment}` : `${t('deliveryTimePrefix')}: ${deliveryDateTimeFormatted}`;
+    return { apiPayload:{ customer_name:name, phone, address:type === 'delivery' ? address : '', district:type === 'delivery' ? district : 'Самовывоз', order_type:type, payment_method:payment, delivery_time_hours:2, delivery_datetime:deliveryDateTimeFormatted, comment, telegram_user_id:String(tg.initDataUnsafe?.user?.id || ''), username:tg.initDataUnsafe?.user?.username || '', language:state.lang, items:state.cart.map(item => ({ product_id:String(item.id), qty:Number(item.qty || 0), side_choice:state.lang === 'ru' ? (item.side_choice_ru || item.side_choice || '') : (item.side_choice_en || item.side_choice || ''), selected_extras:item.extras || [] })) }, localView:{createdAt:new Date().toLocaleString(state.lang === 'ru' ? 'ru-RU' : 'en-US'), total:formatPrice(total), itemsSummary:state.cart.map(item => `${item.name}${item.side_choice ? ' / ' + t('side') + ': ' + (state.lang === 'ru' ? (item.side_choice_ru || item.side_choice) : (item.side_choice_en || item.side_choice)) : ''}${item.extras?.length ? ' / ' + t('addOn') + ': ' + extrasLabel(item.extras) : ''} × ${item.qty}`).join(', '), deliveryDateTime:deliveryDateTimeFormatted, customerName:name, telegramUserId:String(tg.initDataUnsafe?.user?.id || ''), username:tg.initDataUnsafe?.user?.username || ''} };
+}
+async function sendOrder(){
+    const order = buildOrderPayload(); if (!order) return;
+    tg.showConfirm(t('confirm'), async ok => {
+        if (!ok) return;
+        const btn = document.getElementById('checkout'); const old = btn.textContent;
+        try {
+            btn.disabled = true; btn.textContent = t('sending');
+            localStorage.setItem('toh_name', order.apiPayload.customer_name || '');
+            localStorage.setItem('toh_phone', order.apiPayload.phone || '');
+            const result = await apiPost('/api/orders', order.apiPayload);
+            const reviewOrder = {order_id:result.order_id || '', order_number:result.order_number || '', customer_name:order.localView.customerName || order.apiPayload.customer_name || '', telegram_user_id:order.localView.telegramUserId || order.apiPayload.telegram_user_id || '', username:order.localView.username || order.apiPayload.username || ''};
+            state.history.unshift({...order.localView, order_id:result.order_id || '', payment_method:result.payment_method || order.apiPayload.payment_method, payment_status:result.payment_status || '', orderNumber:result.order_number ? `#${result.order_number}` : '', total:result.total_formatted || order.localView.total});
+            saveHistory();
+            state.cart = []; saveCart();
+            document.getElementById('order-address').value = '';
+            document.getElementById('order-comment').value = '';
+            document.getElementById('order-delivery-datetime').value = '';
+            await loadMyOrders();
+            renderAll(); switchTab('profile');
+            tg.showAlert(`${t('success')}${result.order_number ? ': #' + result.order_number : ''}`);
+            if ((result.payment_method || order.apiPayload.payment_method) === 'qr') setTimeout(() => openPaymentQrModal(reviewOrder), 700);
+            else setTimeout(() => openReviewModal(reviewOrder), 700);
+        } catch (error) { console.error(error); tg.showAlert('Error: ' + error.message); }
+        finally { btn.disabled = false; btn.textContent = old; }
+    });
+}
+
+function statusTitle(step){ return state.lang === 'en' ? (step.title_en || step.title_ru || '') : (step.title_ru || step.title_en || ''); }
+function statusText(step){ return state.lang === 'en' ? (step.text_en || step.text_ru || '') : (step.text_ru || step.text_en || ''); }
+function clientStatusSteps(order){
+    const pickup = [
+        {key:'new', title_ru:'Заказ принят', title_en:'Order accepted', text_ru:'Мы получили заказ', text_en:'We have received your order', emoji:'✅'},
+        {key:'preparing', title_ru:'Готовим', title_en:'Preparing', text_ru:'Заказ готовится', text_en:'Your order is being prepared', emoji:'👨‍🍳'},
+        {key:'ready_pickup', title_ru:'Готов к выдаче', title_en:'Ready for pickup', text_ru:'Заказ можно забирать', text_en:'Your order is ready for pickup', emoji:'🛍'}
+    ];
+    const delivery = [
+        {key:'new', title_ru:'Заказ принят', title_en:'Order accepted', text_ru:'Мы получили заказ', text_en:'We have received your order', emoji:'✅'},
+        {key:'preparing', title_ru:'Готовим', title_en:'Preparing', text_ru:'Заказ готовится', text_en:'Your order is being prepared', emoji:'👨‍🍳'},
+        {key:'courier', title_ru:'Передан курьеру', title_en:'On the way', text_ru:'Курьер уже в пути', text_en:'The courier is on the way', emoji:'🚗'},
+        {key:'delivered', title_ru:'Доставлен', title_en:'Delivered', text_ru:'Заказ доставлен', text_en:'The order has been delivered', emoji:'🏁'}
+    ];
+    const steps = (order?.order_type === 'pickup') ? pickup : delivery;
+    const aliases = {accepted:'new', confirmed:'new', paid:'new', ready:'ready_pickup', on_way:'courier', out_for_delivery:'courier', completed:'delivered'};
+    const key = aliases[String(order?.status || 'new')] || String(order?.status || 'new');
+    let current = steps.findIndex(s => s.key === key);
+    if (current < 0) current = 0;
+    return steps.map((s,i) => ({...s, is_done:i<=current, is_current:i===current}));
+}
+function renderStatusTrack(order){
+    const info = order.status_info || {};
+    const steps = (info.steps && info.steps.length) ? info.steps : clientStatusSteps(order);
+    if (!steps.length) return '';
+    return `<div class="status-track">${steps.map(step => `<div class="status-step ${step.is_done ? 'done' : ''} ${step.is_current ? 'current' : ''}"><div class="status-dot">${escapeHtml(step.emoji || '•')}</div><div><div class="status-title">${escapeHtml(statusTitle(step))}</div><div class="status-text">${escapeHtml(statusText(step))}</div></div></div>`).join('')}</div>`;
+}
+function translateKnownText(text){
+    let value = String(text || '');
+    if (state.lang !== 'ru') return value;
+    const map = [
+        ['Borscht with beef','Борщ с говядиной'],
+        ['Borscht','Борщ'],
+        ['Lard','Сало'],
+        ['Sour cream','Сметана'],
+        ['Add on','Дополнительно'],
+        ['Side','Гарнир'],
+        ['Delivery time','Время получения']
+    ];
+    for (const [from,to] of map) value = value.replaceAll(from, to);
+    return value;
+}
+function cleanOrderExtraText(text){
+    let value = translateKnownText(text || '');
+    value = value.replace(/\s*\/\s*Дополнительно:\s*/gi, ' · ');
+    value = value.replace(/\s*\/\s*Гарнир:\s*/gi, ' · ');
+    value = value.replace(/\s*\/\s*Add on:\s*/gi, ' · ');
+    value = value.replace(/\s*\/\s*Side:\s*/gi, ' · ');
+    return value.trim();
+}
+function orderItemsSummary(order){
+    const items = order.items || [];
+    if (!items.length) return '';
+    return items.map(item => {
+        const name = cleanOrderExtraText(orderItemName(item));
+        const side = cleanOrderExtraText(item.side_choice || '');
+        const extra = cleanOrderExtraText(itemExtrasText(item));
+        const meta = [side, extra].filter(Boolean).join(' · ');
+        return `• ${escapeHtml(name)}${meta ? ' · ' + escapeHtml(meta) : ''} × ${escapeHtml(item.qty || 1)} = ${formatPrice(item.total || 0)}`;
+    }).join('<br>');
+}
+function renderServerOrder(order){
+    const number = order.order_number ? '#' + order.order_number : '';
+    const total = formatPrice(order.total || 0);
+    const statusLabel = state.lang === 'en' ? (order.status_label_en || '') : (order.status_label_ru || '');
+    const typeLabel = order.order_type === 'pickup' ? t('pickup') : t('delivery');
+    const paymentLabel = order.payment_method === 'qr' ? 'QR' : t('cash');
+    const canPay = order.can_pay_qr || (order.payment_method === 'qr' && order.payment_status !== 'confirmed');
+    return `<div class="order-card" data-open-order="${escapeHtml(order.id || '')}">
+        <div class="order-card-top"><div><div class="order-number">${escapeHtml(number)}</div><div class="order-date">${escapeHtml(order.created_at || '')}</div></div><div class="order-total">${escapeHtml(total)}</div></div>
+        <div><span class="order-chip">${escapeHtml(typeLabel)}</span><span class="order-chip">${escapeHtml(paymentLabel)}</span><span class="order-chip">${escapeHtml(statusLabel)}</span></div>
+        ${renderStatusTrack(order)}
+        ${order.delivery_datetime ? `<div class="order-chip">${escapeHtml(t('deliveryTimePrefix'))}: ${escapeHtml(order.delivery_datetime)}</div>` : ''}
+        <div class="order-items">${orderItemsSummary(order)}</div>
+        <button type="button" class="history-pay-btn" style="margin-top:12px;background:#222;" data-open-order="${escapeHtml(order.id || '')}">${state.lang === 'en' ? 'Open order' : 'Открыть заказ'}</button>
+    </div>`;
+}
+function itemExtrasText(item){
+    const raw = item.selected_extras || item.extras || '';
+    if (!raw) return '';
+    if (Array.isArray(raw)) return cleanOrderExtraText(extrasLabel(raw));
+    return cleanOrderExtraText(String(raw));
+}
+function orderItemImageSrc(item){
+    return item?.image_data_url || item?.image_full_url || item?.image_url || item?.img || PLACEHOLDER_IMG;
+}
+function orderItemName(item){
+    if (state.lang === 'en') return item?.name_en || item?.product_name_en || item?.name || 'Item';
+    return item?.name_ru || item?.product_name_ru || item?.name || 'Позиция';
+}
+function detailItemsHtml(order){
+    const items = order.items || [];
+    if (!items.length) return '<div class="detail-item"><span>Позиции</span><strong>Нет данных</strong></div>';
+    return items.map(item => {
+        const extra = itemExtrasText(item);
+        const side = item.side_choice || '';
+        const img = orderItemImageSrc(item);
+        const name = orderItemName(item);
+        return `<div class="detail-product">
+            <img src="${escapeHtml(img)}" alt="">
+            <div class="detail-product-main">
+                <div class="detail-product-name">${escapeHtml(name)}</div>
+                ${side ? `<div class="detail-product-meta">${escapeHtml(cleanOrderExtraText(side))}</div>` : ''}
+                ${extra ? `<div class="detail-product-meta">${escapeHtml(cleanOrderExtraText(extra))}</div>` : ''}
+            </div>
+            <div class="detail-product-price">× ${escapeHtml(item.qty || 1)}<br>${formatPrice(item.total || 0)}</div>
+        </div>`;
+    }).join('');
+}
+function findOrderById(orderId){
+    return (state.orders || []).find(x => String(x.id) === String(orderId)) || (state.history || []).find(x => String(x.order_id) === String(orderId));
+}
+function renderDetailQrPayment(order, canPay){
+    if (!canPay) return '';
+    const src = paymentQrImage();
+    return `<div class="detail-pay-panel">
+        <div class="detail-pay-title">${state.lang === 'en' ? 'QR payment' : 'Оплата по QR'}</div>
+        ${src ? `<img class="detail-qr-image" src="${escapeHtml(src)}" alt="QR">` : `<div class="detail-qr-placeholder">${escapeHtml(t('paymentQrMissing'))}</div>`}
+        <button type="button" class="pay-main-btn" data-pay-order="${escapeHtml(order.id || order.order_id || '')}">${state.lang === 'en' ? 'I paid' : 'Я оплатил'}</button>
+    </div>`;
+}
+
+function renderOrderDetail(order){
+    if (!order) return '<div class="empty">Заказ не найден</div>';
+    const number = order.order_number ? '#' + order.order_number : (order.orderNumber || '');
+    const total = (order.total_formatted && !/nan|undefined|не чис/i.test(String(order.total_formatted))) ? order.total_formatted : formatPrice(order.total || order.total_price || 0);
+    const statusLabel = state.lang === 'en' ? (order.status_label_en || '') : (order.status_label_ru || '');
+    const typeLabel = order.order_type === 'pickup' ? t('pickup') : t('delivery');
+    const canPay = order.can_pay_qr || (order.payment_method === 'qr' && order.payment_status !== 'confirmed');
+    return `
+        <div class="detail-hero">
+            <div style="font-weight:900;font-size:13px;opacity:.75;">Заказ ${escapeHtml(number)}</div>
+            <div class="order-total">${escapeHtml(total)}</div>
+            <div style="margin-top:10px;"><span class="order-chip">${escapeHtml(typeLabel)}</span><span class="order-chip">${escapeHtml(statusLabel)}</span></div>
+        </div>
+        <div class="detail-block">
+            <div class="detail-block-title">Статус заказа</div>
+            ${renderStatusTrack(order)}
+        </div>
+        <div class="detail-block">
+            <div class="detail-block-title">Состав заказа</div>
+            ${detailItemsHtml(order)}
+        </div>
+        ${renderDetailQrPayment(order, canPay)}
+        <div class="detail-block">
+            <div class="detail-block-title">Детали</div>
+            <div class="detail-item"><span>Оплата</span><strong>${order.payment_method === 'qr' ? 'QR' : t('cash')}</strong></div>
+            <div class="detail-item"><span>Получение</span><strong>${escapeHtml(typeLabel)}</strong></div>
+            ${order.delivery_datetime ? `<div class="detail-item"><span>${escapeHtml(t('deliveryTimePrefix'))}</span><strong>${escapeHtml(order.delivery_datetime)}</strong></div>` : ''}
+        </div>
+        <div class="detail-actions">
+            <button type="button" class="repeat-btn" data-repeat-order="${escapeHtml(order.id || order.order_id || '')}">Повторить заказ</button>
+        </div>`;
+}
+function openOrderDetail(orderId){
+    const order = findOrderById(orderId);
+    document.getElementById('order-detail-content').innerHTML = renderOrderDetail(order);
+    document.getElementById('order-detail-modal')?.classList.add('active');
+}
+function closeOrderDetail(){ document.getElementById('order-detail-modal')?.classList.remove('active'); }
+function repeatOrder(orderId){
+    const order = findOrderById(orderId);
+    if (!order || !(order.items || []).length) { tg.showAlert('Не удалось повторить заказ'); return; }
+    for (const item of order.items || []) {
+        const product = state.products.find(p => String(p.id) === String(item.product_id));
+        if (!product || !product.is_available) continue;
+        const qty = Math.max(1, Number(item.qty || 1));
+        const sideChoice = item.side_choice || '';
+        const sideObj = product.side_options.find(o => o.name_ru === sideChoice || o.name_en === sideChoice || o.name === sideChoice) || null;
+        const sideLabel = sideObj ? optionLabel(sideObj) : sideChoice;
+        const sideRu = sideObj ? (sideObj.name_ru || sideObj.name || sideLabel) : sideLabel;
+        const sideEn = sideObj ? (sideObj.name_en || sideObj.name || sideLabel) : sideLabel;
+        const extras = [];
+        const key = `${product.id}__${sideRu || 'no_side'}__${sideEn || 'no_side'}__${extrasKey(extras)}`;
+        const existing = state.cart.find(x => x.cartKey === key);
+        if (existing) existing.qty = Number(existing.qty || 0) + qty;
+        else state.cart.push({cartKey:key,id:product.id,img:product.storage_img || '',name:productName(product),base_price:Number(product.price || 0),price:Number(product.price || 0),extras,selected_extras:extras,qty,side_choice:sideLabel,side_choice_ru:sideRu,side_choice_en:sideEn});
+    }
+    saveCart();
+    renderCart();
+    closeOrderDetail();
+    switchTab('cart');
+    tg.showAlert('Заказ добавлен в корзину');
+}
+
+function renderHistory(){
+    const box = document.getElementById('history');
+    const serverOrders = state.orders || [];
+    if (serverOrders.length) { box.innerHTML = serverOrders.map(renderServerOrder).join(''); return; }
+    if (!state.history.length) { box.innerHTML = `<div class="empty" style="padding:30px;">${t('noHistory')}</div>`; return; }
+    box.innerHTML = state.history.map(item => `<div class="history-item" data-open-order="${escapeHtml(item.order_id || '')}"><strong>${escapeHtml(item.orderNumber || '')} ${escapeHtml(item.total || '')}</strong><br><span style="color:#777">${escapeHtml(item.createdAt || '')}</span><br>${item.deliveryDateTime ? `<span style="color:#777">${t('deliveryTimePrefix')}: ${escapeHtml(item.deliveryDateTime)}</span><br>` : ''}<span>${escapeHtml(item.itemsSummary || '')}</span></div>`).join('');
+}
+
+
+function reviewStars(rating){ const n = Math.max(1, Math.min(5, Number(rating || 5))); return '★'.repeat(n) + '☆'.repeat(5 - n); }
+function renderStarPicker(containerId, rating, attr){
+    const box = document.getElementById(containerId);
+    if (!box) return;
+    box.innerHTML = [1,2,3,4,5].map(n => `<button type="button" class="star-btn ${n <= rating ? 'active' : ''}" ${attr}="${n}">★</button>`).join('');
+}
+function currentTelegramName(){
+    const user = tg.initDataUnsafe?.user || {};
+    return [user.first_name || '', user.last_name || ''].join(' ').trim() || user.username || '';
+}
+function currentTelegramPhone(){
+    return telegramPhoneFallback();
+}
+function initProfileAutofill(){
+    updateTelegramUserCard();
+}
+function telegramUserId(){ return String(tg.initDataUnsafe?.user?.id || ''); }
+async function loadMyOrders(){
+    const userId = telegramUserId();
+    if (!userId) { state.orders = []; return []; }
+    try {
+        const orders = await apiGet('/api/orders/my?telegram_user_id=' + encodeURIComponent(userId));
+        state.orders = Array.isArray(orders) ? orders : [];
+        return state.orders;
+    } catch (error) {
+        console.warn('MY ORDERS LOAD ERROR', error);
+        return state.orders || [];
+    }
+}
+function renderReviewForm(){
+    renderStarPicker('review-stars', state.reviewRating, 'data-review-star');
+    renderStarPicker('review-modal-stars', state.reviewModalRating, 'data-review-modal-star');
+    const name = document.getElementById('review-name');
+    if (name && !name.value) name.value = document.getElementById('order-name')?.value || currentTelegramName();
+}
+function renderReviews(){
+    const enabled = String(state.reviewSettings?.reviews_enabled ?? '1') === '1';
+    const disabled = document.getElementById('reviews-disabled');
+    const form = document.getElementById('review-form-block');
+    const list = document.getElementById('reviews-list');
+    if (disabled) disabled.style.display = enabled ? 'none' : 'block';
+    if (form) form.style.display = enabled ? 'block' : 'none';
+    if (!list) return;
+    renderReviewForm();
+    if (!enabled) { list.innerHTML = ''; return; }
+    if (!state.reviews.length) { list.innerHTML = `<div class="empty" style="padding:30px 18px;">${t('reviewEmpty')}</div>`; return; }
+    list.innerHTML = state.reviews.map(r => `<div class="review-card"><div class="review-card-top"><div><div class="review-name">${escapeHtml(r.customer_name || 'Taste of Home guest')}</div><div class="review-date">${escapeHtml(r.created_at || '')}</div></div><div class="review-stars">${reviewStars(r.rating)}</div></div>${r.text ? `<div class="review-text">${escapeHtml(r.text)}</div>` : ''}${r.source ? `<span class="review-source">${escapeHtml(r.source)}</span>` : ''}</div>`).join('');
+}
+function buildReviewPayload(fromModal = false){
+    const name = (fromModal ? document.getElementById('review-modal-name')?.value : document.getElementById('review-name')?.value || document.getElementById('order-name')?.value || currentTelegramName() || '').trim();
+    const text = (fromModal ? document.getElementById('review-modal-text')?.value : document.getElementById('review-text')?.value || '').trim();
+    const rating = fromModal ? state.reviewModalRating : state.reviewRating;
+    if (!rating || !text) { tg.showAlert(t('reviewRequired')); return null; }
+    const user = tg.initDataUnsafe?.user || {};
+    const order = fromModal ? (state.reviewOrder || {}) : {};
+    return {
+        order_id: order.order_id || '',
+        order_number: order.order_number || '',
+        customer_name: name || order.customer_name || currentTelegramName() || '',
+        telegram_user_id: String(user.id || order.telegram_user_id || ''),
+        username: user.username || order.username || '',
+        rating,
+        text,
+        source:'app'
+    };
+}
+async function submitReview(fromModal = false){
+    const payload = buildReviewPayload(fromModal);
+    if (!payload) return;
+    const btn = document.getElementById(fromModal ? 'review-modal-submit' : 'review-submit');
+    const old = btn?.textContent || '';
+    try {
+        if (btn) { btn.disabled = true; btn.textContent = t('sending'); }
+        await apiPost('/api/reviews', payload);
+        if (fromModal) {
+            document.getElementById('review-modal').classList.remove('active');
+            document.getElementById('review-modal-text').value = '';
+        } else {
+            document.getElementById('review-text').value = '';
+            document.getElementById('review-thanks')?.classList.add('active');
+            setTimeout(() => document.getElementById('review-thanks')?.classList.remove('active'), 2500);
+        }
+        state.reviews = await apiGet('/api/reviews').catch(() => state.reviews);
+        renderReviews();
+        tg.showAlert(t('reviewThanks'));
+    } catch (error) {
+        console.error(error);
+        tg.showAlert('Error: ' + error.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = old || t('reviewSubmit'); }
+    }
+}
+function openReviewModal(order){
+    if (String(state.reviewSettings?.reviews_enabled ?? '1') !== '1') return;
+    state.reviewOrder = order || {};
+    state.reviewModalRating = 5;
+    const name = document.getElementById('review-modal-name');
+    const text = document.getElementById('review-modal-text');
+    if (name) name.value = order?.customer_name || document.getElementById('order-name')?.value || currentTelegramName() || '';
+    if (text) text.value = '';
+    renderReviewForm();
+    document.getElementById('review-modal')?.classList.add('active');
+}
+function switchTab(tab){ document.querySelectorAll('.tab').forEach(x => x.classList.remove('active')); document.getElementById(`${tab}-tab`)?.classList.add('active'); document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.tab === tab)); renderCart(); renderReviews(); if (tab === 'profile') { loadMyOrders().then(renderHistory); } }
+function renderAll(){ applyTexts(); renderHero(); renderWorkingHours(); renderCategories(); renderDistricts(); renderProducts(); renderCart(); renderHistory(); renderReviews(); }
+
+function showLoadError(error){
+    document.getElementById('loading').textContent = '';
+    const candidatesText = Array.isArray(APP_CONFIG.API_CANDIDATES) ? APP_CONFIG.API_CANDIDATES.join(' | ') : APP_CONFIG.API_BASE_URL;
+    document.getElementById('products').innerHTML = `<div class="error-box"><strong>${escapeHtml(t('loadError'))}</strong><br><span style="font-size:12px;color:#777">${escapeHtml(error.message || error)}</span><br><span style="font-size:11px;color:#999">API: ${escapeHtml(APP_CONFIG.API_BASE_URL)}</span><br><span style="font-size:10px;color:#aaa">Пробовали: ${escapeHtml(candidatesText)}</span><br><button class="retry" type="button" id="retry-load">${escapeHtml(t('retry'))}</button></div>`;
+    document.getElementById('retry-load')?.addEventListener('click', loadData);
+}
+async function loadData(){
+    state.isLoading = true; document.getElementById('loading').textContent = '...'; renderProducts();
+    const candidates = Array.isArray(APP_CONFIG.API_CANDIDATES) && APP_CONFIG.API_CANDIDATES.length ? APP_CONFIG.API_CANDIDATES : [APP_CONFIG.API_BASE_URL];
+    let lastError = null;
+    for (const candidate of candidates) {
+        APP_CONFIG.API_BASE_URL = cleanBaseUrl(candidate);
+        console.log('Пробую backend:', APP_CONFIG.API_BASE_URL);
+        try {
+            const [categories, banners, menu, delivery, workingHours, reviews, reviewSettings, paymentSettings] = await Promise.all([
+                apiGet('/api/categories').catch(() => []),
+                apiGet('/api/banners').catch(() => []),
+                apiGet('/api/menu'),
+                apiGet('/api/delivery/settings').catch(() => []),
+                apiGet('/api/settings/working-hours').catch(() => ({working_hours:'', working_hours_ru:'', working_hours_en:''})),
+                apiGet('/api/reviews').catch(() => []),
+                apiGet('/api/settings/reviews').catch(() => ({reviews_enabled:'1', reviews_auto_publish:'1', review_followup_enabled:'1'})),
+                apiGet('/api/settings/payment').catch(() => ({payment_qr_enabled:'1', payment_qr_image_url:'', payment_qr_image_full_url:'', payment_qr_image_data_url:'', payment_qr_note_ru:'', payment_qr_note_en:''}))
+            ]);
+            safeLocalStorageSet('toh_api_base_url', APP_CONFIG.API_BASE_URL);
+            state.categories = Array.isArray(categories) ? categories : [];
+            state.banners = Array.isArray(banners) ? banners : [];
+            state.products = Array.isArray(menu) ? menu.map(normalizeProduct).filter(isProductVisibleForClient).sort((a,b) => a.sort_order - b.sort_order) : [];
+            state.deliverySettings = Array.isArray(delivery) ? delivery : [];
+            state.reviews = Array.isArray(reviews) ? reviews : [];
+            state.reviewSettings = reviewSettings || {reviews_enabled:'1', reviews_auto_publish:'1', review_followup_enabled:'1'};
+            state.paymentSettings = paymentSettings || {payment_qr_enabled:'1', payment_qr_image_url:'', payment_qr_image_full_url:'', payment_qr_image_data_url:'', payment_qr_note_ru:'', payment_qr_note_en:''};
+            state.workingHours = workingHours?.working_hours || '';
+            state.workingHoursRu = workingHours?.working_hours_ru || workingHours?.working_hours || '';
+            state.workingHoursEn = workingHours?.working_hours_en || workingHours?.working_hours || '';
+            syncCart();
+            initProfileAutofill();
+            await loadMyOrders().catch(() => {});
+            state.isLoading = false; document.getElementById('loading').textContent = ''; renderAll();
+            return;
+        } catch (error) {
+            lastError = error;
+            console.warn('Backend не ответил:', APP_CONFIG.API_BASE_URL, error);
+        }
+    }
+    console.error('LOAD ERROR', lastError);
+    state.isLoading = false;
+    showLoadError(lastError || new Error('Failed to fetch'));
+}
+
+
+
+// FINAL FIX v2300: количество в корзине меняется только прямым onclick на кнопках.
+// Никаких touchend/pointerup/capture-обработчиков здесь нет, чтобы не ломать клики.
+document.addEventListener('click', event => {
+    if (event.target.closest?.('.qty-btn')) return;
+
+    const nav = event.target.closest('.nav'); if (nav) { switchTab(nav.dataset.tab); return; }
+    const lang = event.target.closest('[data-lang]'); if (lang) {
+        state.lang = lang.dataset.lang;
+        localStorage.setItem('toh_lang', state.lang);
+        // FIX v2516: do not keep an old search when switching RU/EN on phone.
+        state.searchTerm = '';
+        try { localStorage.removeItem('toh_search'); } catch(e) {}
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = '';
+        syncCart(); renderAll(); return;
+    }
+    if (event.target.id === 'clear-search') {
+        state.searchTerm = '';
+        try { localStorage.removeItem('toh_search'); } catch(e) {}
+        const input = document.getElementById('search-input');
+        if (input) input.value = '';
+        renderProducts();
+        return;
+    }
+    const cat = event.target.closest('[data-cat]'); if (cat) { state.activeCategory = cat.dataset.cat; renderCategories(); renderProducts(); return; }
+    const reviewStar = event.target.closest('[data-review-star]'); if (reviewStar) { state.reviewRating = Number(reviewStar.dataset.reviewStar || 5); renderReviewForm(); return; }
+    const reviewModalStar = event.target.closest('[data-review-modal-star]'); if (reviewModalStar) { state.reviewModalRating = Number(reviewModalStar.dataset.reviewModalStar || 5); renderReviewForm(); return; }
+    if (event.target.id === 'history-refresh') { loadMyOrders().then(renderHistory); return; }
+    if (event.target.id === 'order-detail-close' || event.target.id === 'order-detail-modal') { closeOrderDetail(); return; }
+    const repeatBtn = event.target.closest('[data-repeat-order]');
+    if (repeatBtn) { event.preventDefault(); event.stopPropagation(); repeatOrder(repeatBtn.dataset.repeatOrder); return; }
+    const payHistory = event.target.closest('[data-pay-order]');
+    if (payHistory) {
+        event.preventDefault();
+        event.stopPropagation();
+        const orderId = payHistory.dataset.payOrder;
+        const order = (state.orders || []).find(x => String(x.id) === String(orderId)) || (state.history || []).find(x => String(x.order_id) === String(orderId)) || {};
+        const qrOrder = {order_id:order.id || order.order_id || orderId, order_number:order.order_number || order.orderNumber || '', customer_name:order.customer_name || order.customerName || document.getElementById('order-name')?.value || '', telegram_user_id:order.telegram_user_id || telegramUserId(), username:order.username || tg.initDataUnsafe?.user?.username || ''};
+        state.currentQrOrder = qrOrder;
+
+        // Если кнопка нажата внутри открытого заказа, QR уже находится в этой карточке.
+        // Поэтому не открываем второе окно под текущей страницей, а сразу отправляем админу «Я оплатил».
+        if (event.target.closest('#order-detail-modal .detail-pay-panel')) {
+            const oldPayText = payHistory.textContent;
+            payHistory.disabled = true;
+            payHistory.textContent = t('sending');
+            submitQrPaid().finally(() => {
+                payHistory.disabled = false;
+                payHistory.textContent = oldPayText;
+            });
+            return;
+        }
+
+        openPaymentQrModal(qrOrder);
+        return;
+    }
+    const openOrder = event.target.closest('[data-open-order]');
+    if (openOrder) { openOrderDetail(openOrder.dataset.openOrder); return; }
+    if (event.target.id === 'review-submit') { submitReview(false); return; }
+    if (event.target.id === 'review-modal-submit') { submitReview(true); return; }
+    if (event.target.id === 'payment-qr-paid') { submitQrPaid(); return; }
+    if (event.target.id === 'payment-qr-close' || event.target.id === 'payment-qr-modal') { closePaymentQrModal(); return; }
+    if (event.target.id === 'review-modal-later' || event.target.id === 'review-modal') { document.getElementById('review-modal').classList.remove('active'); return; }
+    if (event.target.id === 'modal-close' || event.target.id === 'product-modal') { document.getElementById('product-modal').classList.remove('active'); return; }
+    if (event.target.id === 'modal-add') { if (state.selectedProduct) { addToCart(state.selectedProduct, state.selectedSide, state.selectedExtras, document.getElementById('modal-add')); document.getElementById('product-modal').classList.remove('active'); } return; }
+    const side = event.target.closest('[data-side-index]'); if (side && state.selectedProduct) { const i = Number(side.dataset.sideIndex); state.selectedSide = state.selectedProduct.side_options[i] || null; document.querySelectorAll('.side-option').forEach(x => x.classList.toggle('active', x.dataset.sideIndex === String(i))); return; }
+    const extra = event.target.closest('[data-extra-index]'); if (extra && state.selectedProduct) { const i = Number(extra.dataset.extraIndex); const input = extra.querySelector('input'); setTimeout(() => { const opt = state.selectedProduct.extra_options[i]; if (opt && input) { if (input.checked) { if (!state.selectedExtras.some(x => (x.name || x.name_ru || x.name_en) === (opt.name || opt.name_ru || opt.name_en))) state.selectedExtras.push(opt); } else { state.selectedExtras = state.selectedExtras.filter(x => (x.name || x.name_ru || x.name_en) !== (opt.name || opt.name_ru || opt.name_en)); } } }, 0); return; }
+    const add = event.target.closest('[data-add]'); if (add) { event.preventDefault(); event.stopPropagation(); const product = state.products.find(x => String(x.id) === String(add.dataset.add)); if (!product) return; if (product.side_options.length || product.extra_options.length) openProduct(product.id); else addToCart(product, '', [], add); return; }
+    const card = event.target.closest('[data-product]'); if (card) openProduct(card.dataset.product);
+});
+
+document.addEventListener('change', event => {
+    if (event.target.name === 'payment_method' || event.target.id === 'order-type' || event.target.id === 'order-district' || event.target.id === 'order-delivery-datetime') {
+        renderCart();
+    }
+});
+document.addEventListener('input', event => {
+    if (event.target.id === 'order-name') localStorage.setItem('toh_name', event.target.value.trim());
+    if (event.target.id === 'order-phone') localStorage.setItem('toh_phone', event.target.value.trim());
+});
+document.getElementById('order-form').addEventListener('submit', event => { event.preventDefault(); sendOrder(); });
+
+
+
+
+// FIX v2520: K-price formatting and stable K-money parsing
+function moneyValue(...values){
+    for (const value of values){
+        if (value === null || value === undefined || value === '') continue;
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+        const raw = String(value).trim();
+        const hasK = /k|к/i.test(raw);
+        const cleaned = raw.replace(/₫/g,'').replace(/[kк]/ig,'').replace(/\s/g,'').replace(',', '.').replace(/[^0-9.-]/g,'');
+        if (cleaned && Number.isFinite(Number(cleaned))) return hasK ? Number(cleaned) * 1000 : Number(cleaned);
+    }
+    return 0;
+}
+function formatOrderMoney(order){
+    const num = moneyValue(order?.total, order?.total_price, order?.subtotal);
+    if (num > 0) return formatPrice(num);
+    const formatted = String(order?.total_formatted || order?.total || '').trim();
+    if (formatted && !/^0\s*₫$/.test(formatted) && !/nan|undefined|не чис/i.test(formatted)) return formatted;
+    const itemsTotal = (order?.items || []).reduce((sum,item)=>sum + moneyValue(item?.total, moneyValue(item?.price) * moneyValue(item?.qty,1)),0);
+    return formatPrice(itemsTotal);
+}
+function itemTotalMoney(item){ return moneyValue(item?.total, moneyValue(item?.price) * moneyValue(item?.qty,1)); }
+function parseExtrasForView(raw){
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch(e) { return []; }
+}
+function itemExtrasText(item){
+    const list = item?.selected_extras_list || parseExtrasForView(item?.selected_extras || item?.extras || '');
+    if (list.length) return cleanOrderExtraText(extrasLabel(list));
+    const raw = item?.selected_extras || item?.extras || '';
+    return Array.isArray(raw) ? cleanOrderExtraText(extrasLabel(raw)) : cleanOrderExtraText(String(raw || ''));
+}
+function orderPreview(order){
+    const items = order?.items || [];
+    const first = items[0] || {};
+    const src = orderItemImageSrc(first);
+    const name = items.length ? cleanOrderExtraText(orderItemName(first)) : (state.lang === 'en' ? 'Order details' : 'Состав заказа');
+    const qty = items.reduce((sum,item)=>sum + moneyValue(item.qty,1),0) || 1;
+    const extra = itemExtrasText(first);
+    const more = items.length > 1 ? (state.lang === 'en' ? `+${items.length-1} more` : `ещё ${items.length-1}`) : '';
+    const meta = [extra, `${state.lang === 'en' ? 'qty' : 'кол-во'}: ${qty}`, more].filter(Boolean).join(' · ');
+    return {src,name,meta};
+}
+function orderTypeLabel(order){ return order?.order_type === 'pickup' ? (state.lang === 'en' ? 'Pickup' : 'Самовывоз') : (state.lang === 'en' ? 'Delivery' : 'Доставка'); }
+function orderPaymentLabel(order){ return order?.payment_method === 'qr' ? 'QR' : (state.lang === 'en' ? 'Cash' : 'Наличные'); }
+function orderStatusLabelView(order){ return state.lang === 'en' ? (order?.status_label_en || order?.status_info?.label_en || '') : (order?.status_label_ru || order?.status_info?.label_ru || ''); }
+function renderServerOrder(order){
+    const number = order.order_number ? '#' + order.order_number : (order.orderNumber || '');
+    const total = formatOrderMoney(order);
+    const preview = orderPreview(order);
+    const when = order.delivery_datetime || order.created_at || '';
+    return `<article class="order-card" data-open-order="${escapeHtml(order.id || order.order_id || '')}">
+        <div class="order-card-top">
+            <div><div class="order-number">${escapeHtml(number || (state.lang === 'en' ? 'Order' : 'Заказ'))}</div><div class="order-date">${escapeHtml(order.created_at || '')}</div></div>
+            <div class="order-total">${escapeHtml(total)}</div>
+        </div>
+        <div class="order-chips"><span class="order-chip">${escapeHtml(orderTypeLabel(order))}</span><span class="order-chip">${escapeHtml(orderPaymentLabel(order))}</span>${orderStatusLabelView(order) ? `<span class="order-chip">${escapeHtml(orderStatusLabelView(order))}</span>` : ''}</div>
+        ${when ? `<div class="order-card-preview-meta" style="margin:8px 0 0;">⏱ ${escapeHtml(when)}</div>` : ''}
+        <div class="order-card-preview"><img src="${escapeHtml(preview.src)}" alt=""><div class="order-card-preview-main"><div class="order-card-preview-name">${escapeHtml(preview.name)}</div><div class="order-card-preview-meta">${escapeHtml(preview.meta)}</div></div></div>
+        ${renderStatusTrack(order)}
+        <button type="button" class="order-open-btn" data-open-order="${escapeHtml(order.id || order.order_id || '')}">${state.lang === 'en' ? 'Open order' : 'Открыть заказ'}</button>
+    </article>`;
+}
+function detailItemsHtml(order){
+    const items = order.items || [];
+    if (!items.length) return `<div class="detail-item"><span>${state.lang === 'en' ? 'Items' : 'Позиции'}</span><strong>${state.lang === 'en' ? 'No data' : 'Нет данных'}</strong></div>`;
+    return items.map(item => {
+        const extra = itemExtrasText(item);
+        const side = cleanOrderExtraText(item.side_choice || '');
+        const img = orderItemImageSrc(item);
+        const name = cleanOrderExtraText(orderItemName(item));
+        const qty = moneyValue(item.qty,1) || 1;
+        const total = formatPrice(itemTotalMoney(item));
+        return `<div class="detail-product">
+            <img src="${escapeHtml(img)}" alt="">
+            <div class="detail-product-main">
+                <div class="detail-product-name">${escapeHtml(name)}</div>
+                ${side ? `<div class="detail-product-meta">${escapeHtml(side)}</div>` : ''}
+                ${extra ? `<div class="detail-product-meta">${escapeHtml(extra)}</div>` : ''}
+            </div>
+            <div class="detail-product-price"><span class="qty">× ${escapeHtml(qty)}</span><span class="money">${escapeHtml(total)}</span></div>
+        </div>`;
+    }).join('');
+}
+function renderOrderDetail(order){
+    if (!order) return `<div class="empty">${state.lang === 'en' ? 'Order not found' : 'Заказ не найден'}</div>`;
+    const number = order.order_number ? '#' + order.order_number : (order.orderNumber || '');
+    const total = formatOrderMoney(order);
+    const canPay = order.can_pay_qr || (order.payment_method === 'qr' && order.payment_status !== 'confirmed');
+    const payStatus = order.payment_status === 'confirmed' ? (state.lang === 'en' ? 'Paid' : 'Оплачено') : (order.payment_method === 'qr' ? (state.lang === 'en' ? 'Waiting for payment' : 'Ожидает оплаты') : '');
+    return `
+        <div class="detail-hero">
+            <div style="font-weight:900;font-size:13px;opacity:.78;">${state.lang === 'en' ? 'Order' : 'Заказ'} ${escapeHtml(number)}</div>
+            <div class="order-total">${escapeHtml(total)}</div>
+            <div class="order-chips"><span class="order-chip">${escapeHtml(orderTypeLabel(order))}</span><span class="order-chip">${escapeHtml(orderPaymentLabel(order))}</span>${payStatus ? `<span class="order-chip">${escapeHtml(payStatus)}</span>` : ''}</div>
+        </div>
+        <div class="detail-block"><div class="detail-block-title">${state.lang === 'en' ? 'Order status' : 'Статус заказа'}</div>${renderStatusTrack(order)}</div>
+        <div class="detail-block"><div class="detail-block-title">${state.lang === 'en' ? 'Order contents' : 'Состав заказа'}</div>${detailItemsHtml(order)}</div>
+        ${renderDetailQrPayment(order, canPay)}
+        <div class="detail-block">
+            <div class="detail-block-title">${state.lang === 'en' ? 'Details' : 'Детали'}</div>
+            <div class="detail-item"><span>${state.lang === 'en' ? 'Total' : 'Итого'}</span><strong>${escapeHtml(total)}</strong></div>
+            <div class="detail-item"><span>${state.lang === 'en' ? 'Payment' : 'Оплата'}</span><strong>${escapeHtml(orderPaymentLabel(order))}</strong></div>
+            <div class="detail-item"><span>${state.lang === 'en' ? 'Type' : 'Получение'}</span><strong>${escapeHtml(orderTypeLabel(order))}</strong></div>
+            ${order.delivery_datetime ? `<div class="detail-item"><span>${escapeHtml(t('deliveryTimePrefix'))}</span><strong>${escapeHtml(order.delivery_datetime)}</strong></div>` : ''}
+        </div>
+        <div class="detail-actions"><button type="button" class="repeat-btn" data-repeat-order="${escapeHtml(order.id || order.order_id || '')}">${state.lang === 'en' ? 'Repeat order' : 'Повторить заказ'}</button></div>`;
+}
+function renderHistory(){
+    const box = document.getElementById('history');
+    const serverOrders = state.orders || [];
+    if (serverOrders.length) { box.innerHTML = serverOrders.map(renderServerOrder).join(''); return; }
+    if (!state.history.length) { box.innerHTML = `<div class="empty" style="padding:30px;">${t('noHistory')}</div>`; return; }
+    box.innerHTML = state.history.map(item => `<article class="order-card" data-open-order="${escapeHtml(item.order_id || '')}"><div class="order-card-top"><div><div class="order-number">${escapeHtml(item.orderNumber || '')}</div><div class="order-date">${escapeHtml(item.createdAt || '')}</div></div><div class="order-total">${escapeHtml(item.total || '')}</div></div><div class="order-card-preview-meta">${escapeHtml(item.itemsSummary || '')}</div><button type="button" class="order-open-btn" data-open-order="${escapeHtml(item.order_id || '')}">${state.lang === 'en' ? 'Open order' : 'Открыть заказ'}</button></article>`).join('');
+}
+
+
+// ===== FIX v2518: order form, delivery date layout, history images =====
+function orderFormContactAddress(){
+    const district = districtApiValue(document.getElementById('order-district')?.value || '');
+    const addressRaw = (document.getElementById('order-address')?.value || '').trim();
+    return addressRaw || district || '';
+}
+
+function applyOrderFormVisualFixes(){
+    const type = document.getElementById('order-type')?.value || 'delivery';
+    const addressLabel = document.getElementById('label-address');
+    const addressInput = document.getElementById('order-address');
+    const addressField = document.getElementById('address-field');
+    const dateInput = document.getElementById('order-delivery-datetime');
+
+    if (addressLabel) addressLabel.textContent = state.lang === 'en' ? 'Address details' : 'Детали адреса';
+    if (addressInput) {
+        addressInput.required = false;
+        addressInput.placeholder = state.lang === 'en' ? 'Building, apartment or comment, optional' : 'Корпус, квартира или комментарий, необязательно';
+    }
+    if (addressField && !addressField.querySelector('.note-small')) {
+        const note = document.createElement('div');
+        note.className = 'note-small';
+        addressField.appendChild(note);
+    }
+    const note = addressField?.querySelector('.note-small');
+    if (note) {
+        note.textContent = type === 'delivery'
+            ? (state.lang === 'en' ? 'If this field is empty, we will use the selected district.' : 'Если поле оставить пустым, в заказ уйдёт выбранный район.')
+            : '';
+        note.style.display = type === 'delivery' ? 'block' : 'none';
+    }
+
+    if (dateInput) {
+        dateInput.setAttribute('autocomplete','off');
+        dateInput.setAttribute('inputmode','none');
+        dateInput.style.width = '100%';
+        dateInput.style.maxWidth = '100%';
+    }
+}
+
+const __oldUpdateCartTotals_v2518 = typeof updateCartTotals === 'function' ? updateCartTotals : null;
+if (__oldUpdateCartTotals_v2518) {
+    updateCartTotals = function(){
+        const result = __oldUpdateCartTotals_v2518.apply(this, arguments);
+        applyOrderFormVisualFixes();
+        return result;
+    };
+}
+
+const __oldSetLang_v2518 = typeof setLang === 'function' ? setLang : null;
+if (__oldSetLang_v2518) {
+    setLang = function(lang){
+        const result = __oldSetLang_v2518.apply(this, arguments);
+        applyOrderFormVisualFixes();
+        return result;
+    };
+}
+
+function productForOrderItem(item){
+    if (!item) return null;
+    const ids = [item.product_id, item.id, item.productId].filter(v => v !== undefined && v !== null).map(String);
+    let product = state.products.find(p => ids.includes(String(p.id)));
+    if (product) return product;
+    const ru = String(item.name_ru || item.product_name_ru || item.name || '').trim().toLowerCase();
+    const en = String(item.name_en || item.product_name_en || item.name || '').trim().toLowerCase();
+    return state.products.find(p => {
+        const pr = String(p.name?.ru || p.name_ru || p.name || '').trim().toLowerCase();
+        const pe = String(p.name?.en || p.name_en || '').trim().toLowerCase();
+        return (ru && (ru === pr || ru === pe)) || (en && (en === pr || en === pe));
+    }) || null;
+}
+
+function orderItemImageSrc(item){
+    const product = productForOrderItem(item);
+    if (product?.img) return product.img;
+    if (product?.storage_img) return product.storage_img;
+    const src = item?.image_data_url || item?.image_full_url || item?.image_url || item?.img || item?.image || '';
+    if (!src) return PLACEHOLDER_IMG;
+    if (String(src).startsWith('data:image')) return src;
+    if (String(src).startsWith('http')) return src;
+    return APP_CONFIG.API_BASE_URL.replace(/\/$/, '') + '/' + String(src).replace(/^\//, '');
+}
+
+function buildOrderPayload(){
+    updateTelegramUserCard();
+    applyOrderFormVisualFixes();
+    const name = (document.getElementById('order-name')?.value || currentTelegramName() || 'Telegram').trim();
+    const phone = (document.getElementById('order-phone')?.value || telegramPhoneFallback()).trim();
+    const type = document.getElementById('order-type').value;
+    const district = districtApiValue(document.getElementById('order-district').value);
+    const address = type === 'delivery' ? orderFormContactAddress() : '';
+    const payment = getPaymentMethod();
+    const deliveryDateTimeValue = document.getElementById('order-delivery-datetime').value;
+    const deliveryDateTimeFormatted = formatDeliveryDateTime(deliveryDateTimeValue);
+    const userComment = document.getElementById('order-comment').value.trim();
+
+    if (!deliveryDateTimeValue) { tg.showAlert(t('chooseDateTime')); return null; }
+    if (!state.cart.length) { tg.showAlert(t('cartEmpty')); return null; }
+
+    const subtotal = state.cart.reduce((sum,item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
+    const delivery = calculateDelivery(subtotal);
+    const total = subtotal + delivery.delivery_total;
+    const comment = userComment
+        ? `${t('deliveryTimePrefix')}: ${deliveryDateTimeFormatted}
+${userComment}`
+        : `${t('deliveryTimePrefix')}: ${deliveryDateTimeFormatted}`;
+
+    return {
+        apiPayload:{
+            customer_name:name,
+            phone,
+            address,
+            district:type === 'delivery' ? district : 'Самовывоз',
+            order_type:type,
+            payment_method:payment,
+            delivery_time_hours:2,
+            delivery_datetime:deliveryDateTimeFormatted,
+            comment,
+            telegram_user_id:String(tg.initDataUnsafe?.user?.id || ''),
+            username:tg.initDataUnsafe?.user?.username || '',
+            language:state.lang,
+            items:state.cart.map(item => ({
+                product_id:String(item.id),
+                qty:Number(item.qty || 0),
+                side_choice:state.lang === 'ru' ? (item.side_choice_ru || item.side_choice || '') : (item.side_choice_en || item.side_choice || ''),
+                selected_extras:item.extras || []
+            }))
+        },
+        localView:{
+            createdAt:new Date().toLocaleString(state.lang === 'ru' ? 'ru-RU' : 'en-US'),
+            total:formatPrice(total),
+            itemsSummary:state.cart.map(item => `${item.name}${item.side_choice ? ' / ' + t('side') + ': ' + (state.lang === 'ru' ? (item.side_choice_ru || item.side_choice) : (item.side_choice_en || item.side_choice)) : ''}${item.extras?.length ? ' / ' + t('addOn') + ': ' + extrasLabel(item.extras) : ''} × ${item.qty}`).join(', '),
+            deliveryDateTime:deliveryDateTimeFormatted,
+            customerName:name,
+            telegramUserId:String(tg.initDataUnsafe?.user?.id || ''),
+            username:tg.initDataUnsafe?.user?.username || ''
+        }
+    };
+}
+
+setTimeout(applyOrderFormVisualFixes, 100);
+// ===== /FIX v2518 =====
+
+
+// ===== FIX v2519: delay dish availability by minutes =====
+function dishDelayMinutes(product){
+    if (!product) return 0;
+    const direct = Number(product.wait_minutes || product.prep_time_minutes || 0);
+    if (Number.isFinite(direct) && direct > 0) return Math.round(direct);
+
+    const type = String(product.delivery_time_type || '').toLowerCase();
+    const raw = String(product.delivery_time || product.delivery_time_label || '').toLowerCase().replace(',', '.');
+    if (type === 'in_hour') return 60;
+    if (type !== 'custom' && !raw.includes('через')) return 0;
+
+    const m = raw.match(/(\d+(?:\.\d+)?)/);
+    if (!m) return 0;
+    const value = Number(m[1]);
+    if (!Number.isFinite(value) || value <= 0) return 0;
+    if (raw.includes('час') || raw.includes('ч') || raw.includes('hour') || raw.includes(' h')) return Math.round(value * 60);
+    return Math.round(value);
+}
+
+function minuteWordRuClient(n){
+    n = Math.abs(Number(n) || 0);
+    if (n % 100 >= 11 && n % 100 <= 14) return 'минут';
+    if (n % 10 === 1) return 'минута';
+    if (n % 10 >= 2 && n % 10 <= 4) return 'минуты';
+    return 'минут';
+}
+
+function delayLabel(product){
+    const minutes = dishDelayMinutes(product);
+    if (!minutes) return String(product?.delivery_time_label || product?.delivery_time || '').trim();
+    if (state.lang === 'en') {
+        if (minutes === 60) return 'In 1 hour';
+        return `In ${minutes} min`;
+    }
+    if (minutes === 60) return 'Через час';
+    return `Через ${minutes} ${minuteWordRuClient(minutes)}`;
+}
+
+const __oldTimeText_v2519 = typeof timeText === 'function' ? timeText : null;
+timeText = function(product){
+    return delayLabel(product);
+};
+
+function maxCartDelayMinutes(){
+    if (!state.cart || !state.cart.length) return 0;
+    return state.cart.reduce((max, item) => {
+        const product = state.products.find(p => String(p.id) === String(item.id));
+        return Math.max(max, dishDelayMinutes(product || item));
+    }, 0);
+}
+
+function minReadyDateForCart(){
+    const d = new Date();
+    d.setSeconds(0, 0);
+    d.setMinutes(d.getMinutes() + maxCartDelayMinutes());
+    return d;
+}
+
+setDefaultDeliveryDateTime = function(){
+    const input = document.getElementById('order-delivery-datetime');
+    if (!input) return;
+    const minDate = minReadyDateForCart();
+    const minValue = toDateTimeLocalValue(minDate);
+    input.min = minValue;
+
+    const current = input.value ? new Date(input.value) : null;
+    if (!input.value || Number.isNaN(current?.getTime?.()) || current < minDate) {
+        input.value = minValue;
+    }
+
+    const note = document.getElementById('delivery-datetime-note');
+    const delay = maxCartDelayMinutes();
+    if (note) {
+        if (delay > 0) {
+            note.textContent = state.lang === 'en'
+                ? `The earliest ready time is in ${delay} min.`
+                : `Минимальное время готовности: через ${delay} ${minuteWordRuClient(delay)}.`;
+        } else {
+            note.textContent = t('deliveryDateTimeNote');
+        }
+    }
+};
+
+const __oldBuildOrderPayload_v2519 = typeof buildOrderPayload === 'function' ? buildOrderPayload : null;
+if (__oldBuildOrderPayload_v2519) {
+    buildOrderPayload = function(){
+        setDefaultDeliveryDateTime();
+        const order = __oldBuildOrderPayload_v2519.apply(this, arguments);
+        if (!order) return order;
+        const input = document.getElementById('order-delivery-datetime');
+        const formatted = formatDeliveryDateTime(input?.value || '');
+        const delay = maxCartDelayMinutes();
+        order.apiPayload.delivery_datetime = formatted;
+        order.localView.deliveryDateTime = formatted;
+        if (delay > 0) {
+            const note = state.lang === 'en'
+                ? `Earliest ready time: in ${delay} min`
+                : `Минимальное время готовности: через ${delay} ${minuteWordRuClient(delay)}`;
+            if (!String(order.apiPayload.comment || '').includes(note)) {
+                order.apiPayload.comment = order.apiPayload.comment ? `${order.apiPayload.comment}\n${note}` : note;
+            }
+        }
+        return order;
+    };
+}
+
+const __oldSyncCart_v2519 = typeof syncCart === 'function' ? syncCart : null;
+if (__oldSyncCart_v2519) {
+    syncCart = function(){
+        const result = __oldSyncCart_v2519.apply(this, arguments);
+        setDefaultDeliveryDateTime();
+        return result;
+    };
+}
+
+setTimeout(setDefaultDeliveryDateTime, 150);
+// ===== /FIX v2519 =====
+
+loadData();
+</script>
+</body>
+</html>
